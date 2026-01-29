@@ -37,29 +37,6 @@ pip install specspectacle
 # Install Chromium browser for Playwright
 playwright install chromium
 ```
-
-### Development Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/fedricknishant/specspectacle.git
-cd specspectacle
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements-dev.txt
-
-# Install Playwright browser
-playwright install chromium
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env and add your TTS API key
-```
-
 ---
 
 ## 📖 Usage
@@ -85,15 +62,6 @@ specspectacle run demo.yaml
 ```
 
 Your video will be saved to `./output/demo.mp4`!
-
----
-
-### Future
-- Multi-language support
-- SaaS backend with cloud rendering
-- GitHub Action integration
-- Web UI for visual flow editing
-- Template library
 
 ---
 
@@ -157,6 +125,14 @@ specspectacle run login-demo.yaml
 
 ---
 
+### Future
+- Multi-language support
+- SaaS backend with cloud rendering
+- GitHub Action integration
+- Web UI for visual flow editing
+- Template library
+
+---
 ## 🙏 Acknowledgments
 
 Built with:
@@ -167,4 +143,4 @@ Built with:
 
 ---
 
-**Status**: ✅ Phase 1 complete! v0.1.0 release coming soon.
+**Status**: ✅ Phase 1 complete! v0.1.0 released
