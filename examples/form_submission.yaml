@@ -1,0 +1,75 @@
+name: "Form Submission Demo"
+version: "0.1.0"
+description: "Filling out a complex form with various input types"
+
+config:
+  target_app: "https://formy-project.herokuapp.com"
+  viewport: {width: 1280, height: 720}
+  timeout: 5000
+
+output:
+  filename: "form_demo.mp4"
+  fps: 30
+
+narration:
+  enabled: true
+
+flows:
+  - name: "Form Entry"
+    steps:
+      - action: navigate
+        url: "https://formy-project.herokuapp.com/form"
+        narration:
+          text: "We are navigating to the sample web form."
+
+      - action: type
+        selector: "#first-name"
+        text: "Jane"
+        narration:
+          text: "Enter first name."
+          
+      - action: type
+        selector: "#last-name"
+        text: "Smith"
+        delay: 50
+        
+      - action: type
+        selector: "#job-title"
+        text: "Engineer"
+        
+      - action: click
+        selector: "#radio-button-2" # College
+        narration:
+          text: "Select education level."
+          
+      - action: click
+        selector: "#checkbox-1" # Male (label is Sex)
+        narration:
+          text: "Select gender."
+          
+      - action: select
+        selector: "#select-menu"
+        value: "2" # 0-4? Values are usually value attribute. 
+        # On formy: <option value="1">0-1</option>, value="2" is 2-4.
+        narration:
+          text: "Select years of experience."
+          
+      - action: type
+        selector: "#datepicker"
+        text: "01/01/2024"
+        narration:
+          text: "Choose a date."
+          
+      - action: click
+        selector: ".btn-primary"
+        overlay:
+          text: "Submitting..."
+          position: "center"
+          
+      - action: wait_for_selector
+        selector: ".alert-success"
+        narration:
+          text: "Form submitted successfully!"
+        overlay:
+          text: "Success"
+          position: "top"

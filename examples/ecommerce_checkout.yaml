@@ -1,0 +1,97 @@
+name: "E-Commerce Checkout Demo"
+version: "0.1.0"
+description: "Demonstrates a full purchase flow including adding to cart and checkout"
+
+config:
+  target_app: "https://www.saucedemo.com"
+  viewport: {width: 1280, height: 720}
+  timeout: 5000
+
+output:
+  filename: "checkout_demo.mp4"
+  fps: 30
+
+narration:
+  enabled: true
+  voice: "en-US-Neural2-F"
+
+flows:
+  - name: "Authentication"
+    description: "Quick login to access the store"
+    steps:
+      - action: navigate
+        url: "https://www.saucedemo.com"
+      - action: type
+        selector: "#user-name"
+        text: "standard_user"
+      - action: type
+        selector: "#password"
+        text: "secret_sauce"
+      - action: click
+        selector: "#login-button"
+      - action: wait_for_selector
+        selector: ".inventory_list"
+
+  - name: "Shopping Flow"
+    description: "Select items and checkout"
+    steps:
+      - action: scroll
+        direction: "down"
+        narration:
+          text: "Let's browse the available products."
+          
+      - action: click
+        selector: "[data-test='add-to-cart-sauce-labs-backpack']"
+        narration:
+          text: "The backpack looks good. Adding it to the cart."
+        overlay:
+          text: "Item Added"
+          position: "top-right"
+
+      - action: click
+        selector: "[data-test='add-to-cart-sauce-labs-bike-light']"
+        narration:
+          text: "We'll also take the bike light."
+
+      - action: click
+        selector: ".shopping_cart_link"
+        narration:
+          text: "Now, let's view the cart."
+
+      - action: wait_for_selector
+        selector: ".cart_list"
+        
+      - action: click
+        selector: "[data-test='checkout']"
+        narration:
+          text: "Proceeding to checkout."
+
+  - name: "Checkout Process"
+    steps:
+      - action: type
+        selector: "[data-test='firstName']"
+        text: "John"
+      - action: type
+        selector: "[data-test='lastName']"
+        text: "Doe"
+      - action: type
+        selector: "[data-test='postalCode']"
+        text: "12345"
+        narration:
+          text: "Filling in shipping information."
+      
+      - action: click
+        selector: "[data-test='continue']"
+      
+      - action: scroll
+        direction: "down"
+        narration:
+          text: "Reviewing the order summary."
+          
+      - action: click
+        selector: "[data-test='finish']"
+        overlay:
+          text: "Order Placed!"
+          style: {font_size: 32}
+        narration:
+          text: "And the order is complete! Thank you for shopping."

@@ -1,0 +1,72 @@
+name: "Dashboard Navigation Demo"
+version: "0.1.0"
+description: "Exploring dashboard features like sorting and menu navigation"
+
+config:
+  target_app: "https://www.saucedemo.com"
+  viewport: {width: 1280, height: 720}
+  timeout: 15000
+
+output:
+  filename: "dashboard_demo.mp4"
+  fps: 30
+
+narration:
+  enabled: true
+
+flows:
+  - name: "Setup"
+    steps:
+      - action: navigate
+        url: "https://www.saucedemo.com"
+      - action: type
+        selector: "#user-name"
+        text: "standard_user"
+      - action: type
+        selector: "#password"
+        text: "secret_sauce"
+      - action: click
+        selector: "#login-button"
+
+  - name: "Dashboard Exploration"
+    steps:
+      - action: select
+        selector: "[data-test='product-sort-container']"
+        value: "lohi"
+        narration:
+          text: "We can sort products by price, low to high."
+        overlay:
+          text: "Sorting: Price (Low to High)"
+          position: "top"
+      
+      - action: wait
+        duration: 2.0
+        
+      - action: hover
+        selector: ".inventory_item:first-child"
+        narration:
+          text: "Hovering over the cheapest item."
+          
+      - action: scroll
+        direction: "down"
+        narration:
+          text: "Scrolling down to see more expensive items."
+      
+      - action: click
+        selector: "#react-burger-menu-btn"
+        narration:
+          text: "Opening the main menu."
+          
+      - action: wait_for_selector
+        selector: ".bm-item-list"
+        
+      - action: hover
+        selector: "#about_sidebar_link"
+        overlay:
+          text: "External Link"
+          position: "right"
+          
+      - action: click
+        selector: "#reset_sidebar_link"
+        narration:
+          text: "Resetting app state."

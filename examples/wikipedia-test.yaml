@@ -1,0 +1,89 @@
+name: "Wikipedia Test"
+description: "Test all actions with a real website"
+version: "0.1.0"
+
+config:
+  target_app: "https://www.wikipedia.org"
+  viewport:
+    width: 1280
+    height: 720
+  timeout: 5000
+  headless: true
+  slow_motion: 100  # Slower for better video capture
+
+output:
+  filename: "wikipedia_test.mp4"
+  fps: 30
+  bitrate: "5000k"
+  codec: "h264"
+  resolution: "1280x720"
+
+narration:
+  enabled: true
+
+flows:
+  - name: "Test All Actions"
+    description: "Test navigate, click, type, wait, scroll, hover, wait_for_selector, screenshot"
+    
+    steps:
+      # 1. Navigate to Wikipedia
+      - action: "navigate"
+        url: "https://www.wikipedia.org"
+        pause: 2.0
+        narration: 
+          text: "Navigating to Wikipedia"
+        overlay:
+          text: "Navigating to Wikipedia"
+          position: "bottom"
+          duration: 2.0
+      
+      # 2. Wait for search input to appear
+      - action: "wait_for_selector"
+        selector: "#searchInput"
+        timeout: 5000
+        pause: 0.5
+      
+      # 3. Click on the search box
+      - action: "click"
+        selector: "#searchInput"
+        pause: 0.5
+      
+      # 4. Type in the search box
+      - action: "type"
+        selector: "#searchInput"
+        text: "Playwright"
+        delay: 50
+        pause: 1.0
+      
+      # 5. Click the search button
+      - action: "click"
+        selector: "button[type='submit']"
+        pause: 2.0
+      
+      # 6. Wait for results page to load
+      - action: "wait"
+        duration: 2.0
+      
+      # 7. Scroll down
+      - action: "scroll"
+        direction: "down"
+        pause: 1.0
+      
+      # 8. Scroll up
+      - action: "scroll"
+        direction: "up"
+        pause: 1.0
+      
+      # 9. Hover over first heading
+      - action: "hover"
+        selector: "h1"
+        pause: 1.0
+      
+      # 10. Take a screenshot
+      - action: "screenshot"
+        path: "output/screenshots/wikipedia_test.png"
+        pause: 0.5
+      
+      # 11. Wait a bit before ending
+      - action: "wait"
+        duration: 1.0

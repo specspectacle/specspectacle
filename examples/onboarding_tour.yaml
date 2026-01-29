@@ -1,0 +1,170 @@
+name: "Onboarding Tour Demo"
+version: "0.1.0"
+description: "Product onboarding tour demonstrating heavy overlay usage across all positions"
+
+config:
+  target_app: "https://demo.applitools.com"
+  viewport: {width: 1280, height: 720}
+  timeout: 5000
+  headless: false
+
+output:
+  filename: "onboarding_tour.mp4"
+  fps: 30
+  resolution: "1280x720"
+
+narration:
+  enabled: true
+  voice: "en-US-Neural2-F"
+
+flows:
+  - name: "Welcome"
+    description: "Introduction to the application"
+    steps:
+      - action: navigate
+        url: "https://demo.applitools.com"
+        overlay:
+          text: "Welcome to the Product Tour!"
+          position: "center"
+          duration: 3.0
+          style: {background_color: "#4A90D9EE", font_size: 32}
+        narration:
+          text: "Welcome to our product tour! Let's explore the key features of this application together."
+
+      - action: wait
+        duration: 2.0
+        overlay:
+          text: "📋 Today's Agenda"
+          position: "top"
+          style: {background_color: "#2F2F2FDD"}
+
+  - name: "Login Feature Highlight"
+    description: "Showcasing the authentication experience"
+    steps:
+      - action: wait_for_selector
+        selector: "#username"
+        overlay:
+          text: "Step 1: Authentication"
+          position: "top-left"
+          style: {background_color: "#28A745DD", font_size: 24}
+        narration:
+          text: "The first thing you'll see is our streamlined login page."
+
+      - action: hover
+        selector: "#username"
+        overlay:
+          text: "👤 Username Field"
+          position: "right"
+          style: {background_color: "#17A2B8EE"}
+        narration:
+          text: "Simply enter your username in this field."
+
+      - action: type
+        selector: "#username"
+        text: "demo_user"
+        delay: 80
+        overlay:
+          text: "Entering credentials..."
+          position: "bottom-left"
+          style: {background_color: "#6C757DCC"}
+
+      - action: hover
+        selector: "#password"
+        overlay:
+          text: "🔒 Password Field"
+          position: "left"
+          style: {background_color: "#17A2B8EE"}
+        narration:
+          text: "Next, enter your secure password."
+
+      - action: type
+        selector: "#password"
+        text: "SecurePass123"
+        delay: 60
+        overlay:
+          text: "Password protected"
+          position: "bottom-right"
+          style: {background_color: "#FFC107DD", text_color: "#000000"}
+
+      - action: hover
+        selector: "#log-in"
+        overlay:
+          text: "Click to Sign In →"
+          position: "top-right"
+          style: {background_color: "#DC3545EE", font_size: 20}
+        narration:
+          text: "Finally, click the sign in button to access the application."
+
+      - action: click
+        selector: "#log-in"
+        overlay:
+          text: "🚀 Logging in..."
+          position: "center"
+          duration: 2.0
+          style: {background_color: "#28A745EE", font_size: 28}
+
+  - name: "Dashboard Tour"
+    description: "Exploring the main dashboard features"
+    steps:
+      - action: wait_for_selector
+        selector: ".element-header"
+        overlay:
+          text: "✅ Login Successful!"
+          position: "top"
+          duration: 2.0
+          style: {background_color: "#28A745EE", font_size: 26}
+        narration:
+          text: "You're now logged in to the dashboard. Let's explore what's available."
+
+      - action: wait
+        duration: 1.5
+        overlay:
+          text: "Dashboard Overview"
+          position: "bottom"
+          style: {background_color: "#4A90D9DD"}
+
+      - action: scroll
+        direction: "down"
+        overlay:
+          text: "📊 Scrolling through content..."
+          position: "right"
+          style: {background_color: "#6C757DEE"}
+        narration:
+          text: "The dashboard provides a comprehensive view of your financial information."
+
+      - action: wait
+        duration: 2.0
+        overlay:
+          text: "Explore More Features ↓"
+          position: "bottom-right"
+          style: {background_color: "#17A2B8DD"}
+
+      - action: scroll
+        direction: "up"
+        overlay:
+          text: "↑ Back to Top"
+          position: "bottom-left"
+          style: {background_color: "#6C757DCC"}
+
+  - name: "Tour Conclusion"
+    description: "Wrapping up the tour"
+    steps:
+      - action: wait
+        duration: 2.0
+        overlay:
+          text: "🎉 Tour Complete!"
+          position: "center"
+          duration: 3.0
+          style: {background_color: "#4A90D9EE", font_size: 36}
+        narration:
+          text: "That completes our product tour. You've seen how easy it is to navigate and use the application."
+
+      - action: wait
+        duration: 2.0
+        overlay:
+          text: "Thank you for watching!"
+          position: "bottom"
+          duration: 3.0
+          style: {background_color: "#28A745DD", font_size: 24}
+        narration:
+          text: "Thank you for watching! Start exploring on your own and discover even more features."

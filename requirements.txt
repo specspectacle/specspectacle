@@ -1,0 +1,26 @@
+# SpecSpectacle - Production Dependencies
+# Phase 1 MVP Requirements
+
+# Browser automation and video recording
+playwright>=1.40.0
+
+# CLI framework
+click>=8.1.0
+
+# YAML parsing
+pyyaml>=6.0
+
+# Schema validation
+pydantic>=2.0.0
+
+# Video post-processing
+ffmpeg-python>=0.2.0
+
+# Text-to-Speech - Edge TTS (Free, no API key required)
+edge-tts>=6.1.0
+
+# Pretty CLI output and logging
+rich>=13.0.0
+
+# Environment variable management
+python-dotenv>=1.0.0
