@@ -19,18 +19,18 @@ version: "0.1.0"
 config:
   # Base URL of your application
   target_app: "https://app.example.com"
-  
+
   # Browser viewport size
   viewport:
     width: 1280
     height: 720
-  
+
   # Default timeout for element waiting (milliseconds)
   timeout: 5000
-  
+
   # Run in headless mode (no visible browser)
   headless: true
-  
+
   # Slow motion delay for smoother recordings (milliseconds)
   slow_motion: 0
 
@@ -55,13 +55,13 @@ flows:
   # Flow 1: Login Example
   - name: "User Login"
     description: "Demonstrate the login process"
-    
+
     # Optional: Flow-level narration (plays before flow starts)
     narration:
       text: "In this section, we'll demonstrate how to log into the application."
       timing: "before"
       offset: 0.0
-    
+
     steps:
       # Example 1: Navigate to a page
       - action: "navigate"
@@ -78,7 +78,7 @@ flows:
             background_color: "#000000AA"
             text_color: "#FFFFFF"
             font_size: 22
-      
+
       # Example 2: Click an element
       - action: "click"
         selector: "#email"
@@ -87,7 +87,7 @@ flows:
           text: "Click email field"
           position: "bottom"
           duration: 1.5
-      
+
       # Example 3: Type text
       - action: "type"
         selector: "#email"
@@ -97,19 +97,19 @@ flows:
         narration:
           text: "Enter your email address"
           timing: "during"
-      
+
       # Example 4: Another click
       - action: "click"
         selector: "#password"
         pause: 0.5
-      
+
       # Example 5: Type with hidden password
       - action: "type"
         selector: "#password"
         text: "DemoPassword123"
         delay: 50
         pause: 1.0
-      
+
       # Example 6: Submit form
       - action: "click"
         selector: "button[type='submit']"
@@ -118,7 +118,7 @@ flows:
           text: "Submit login form"
           position: "bottom"
           duration: 2.0
-      
+
       # Example 7: Wait for element to appear
       - action: "wait_for_selector"
         selector: ".dashboard-header"
@@ -132,7 +132,7 @@ flows:
   # Flow 2: Dashboard Navigation
   - name: "Dashboard Tour"
     description: "Explore the main dashboard"
-    
+
     steps:
       # Example 8: Scroll down the page
       - action: "scroll"
@@ -141,12 +141,12 @@ flows:
         narration:
           text: "Scroll down to view more content"
           timing: "during"
-      
+
       # Alternative: Scroll to a specific element
       # - action: "scroll"
       #   selector: "#footer"
       #   pause: 2.0
-      
+
       # Example 9: Hover over an element
       - action: "hover"
         selector: ".chart-widget"
@@ -155,7 +155,7 @@ flows:
           text: "Hover to see details"
           position: "top-right"
           duration: 1.5
-      
+
       # Example 10: Select from dropdown
       - action: "select"
         selector: "#time-range"
@@ -165,21 +165,21 @@ flows:
           text: "Change time range"
           position: "bottom"
           duration: 1.5
-      
+
       # Example 11: Wait for a duration
       - action: "wait"
         duration: 2.0  # Wait 2 seconds
         narration:
           text: "Let the data load"
           timing: "during"
-      
+
       # Example 12: Take a screenshot (optional)
       - action: "screenshot"
         path: "./screenshots/dashboard.png"  # Optional path
         pause: 0.5
 
 # ==================== TIPS ====================
-# 
+#
 # 1. **Selectors**: Use CSS selectors (id, class, attribute, etc.)
 #    - By ID: #my-element
 #    - By class: .my-class

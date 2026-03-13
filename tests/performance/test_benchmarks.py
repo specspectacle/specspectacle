@@ -4,10 +4,9 @@ Performance benchmark tests for video processing.
 These tests measure and validate performance of the video processing pipeline.
 """
 
-import time
-from pathlib import Path
+
 import pytest
-from specspectacle.video.processor import VideoProcessor, process_video
+
 from specspectacle.video.ffmpeg_utils import check_ffmpeg_installed
 
 

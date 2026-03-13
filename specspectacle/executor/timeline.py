@@ -9,7 +9,6 @@ import json
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 
 @dataclass
@@ -40,8 +39,8 @@ class TimelineEvent:
     flow_index: int
     step_index: int
     success: bool = True
-    error_message: Optional[str] = None
-    narration_start_time: Optional[float] = None  # Exact time when narration should play
+    error_message: str | None = None
+    narration_start_time: float | None = None  # Exact time when narration should play
 
     def to_dict(self) -> dict:
         """Convert event to dictionary for JSON serialization."""
@@ -64,9 +63,9 @@ class Timeline:
     """
 
     spec_name: str
-    events: List[TimelineEvent] = field(default_factory=list)
-    started_at: Optional[float] = None
-    completed_at: Optional[float] = None
+    events: list[TimelineEvent] = field(default_factory=list)
+    started_at: float | None = None
+    completed_at: float | None = None
 
     def start(self) -> None:
         """Mark the start of spec execution."""
@@ -95,8 +94,8 @@ class Timeline:
         start_time: float,
         end_time: float,
         success: bool = True,
-        error_message: Optional[str] = None,
-        narration_start_time: Optional[float] = None,
+        error_message: str | None = None,
+        narration_start_time: float | None = None,
     ) -> TimelineEvent:
         """
         Create and record a new timeline event.
@@ -145,12 +144,12 @@ class Timeline:
         return sum(event.duration for event in self.events)
 
     @property
-    def successful_events(self) -> List[TimelineEvent]:
+    def successful_events(self) -> list[TimelineEvent]:
         """Get list of successful events."""
         return [e for e in self.events if e.success]
 
     @property
-    def failed_events(self) -> List[TimelineEvent]:
+    def failed_events(self) -> list[TimelineEvent]:
         """Get list of failed events."""
         return [e for e in self.events if not e.success]
 
@@ -196,7 +195,7 @@ class Timeline:
         Returns:
             Timeline instance
         """
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         timeline = cls(spec_name=data["spec_name"])

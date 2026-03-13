@@ -1,5 +1,6 @@
 """Run command - Execute YAML spec and generate demo video."""
 
+import contextlib
 import sys
 from pathlib import Path
 
@@ -115,7 +116,7 @@ def run(
 
             console.print()
 
-        console.print(f"[bold]Summary:[/bold]")
+        console.print("[bold]Summary:[/bold]")
         console.print(f"  • Total flows: {len(spec.flows)}")
         console.print(f"  • Total steps: {total_steps}")
         console.print(f"  • Output: {spec.output.filename}")
@@ -171,7 +172,6 @@ def run(
 
             # Import video processing modules
             from specspectacle.video import (
-                FFmpegNotFoundError,
                 OverlayTimestampCalculator,
                 VideoProcessor,
                 check_ffmpeg_installed,
@@ -265,10 +265,8 @@ def run(
 
                                 # Cleanup intermediate video
                                 if not keep_artifacts and current_video_path != raw_video_path:
-                                    try:
+                                    with contextlib.suppress(OSError):
                                         current_video_path.unlink()
-                                    except OSError:
-                                        pass
                                 current_video_path = merged_video
 
                                 # Cleanup audio temps
@@ -296,10 +294,8 @@ def run(
 
                                 # Cleanup intermediate video
                                 if not keep_artifacts and current_video_path != raw_video_path:
-                                    try:
+                                    with contextlib.suppress(OSError):
                                         current_video_path.unlink()
-                                    except OSError:
-                                        pass
                                 current_video_path = overlaid_video
 
                             except Exception as e:
@@ -323,7 +319,7 @@ def run(
                     if not keep_artifacts:
                         try:
                             raw_video_path.unlink()
-                            console.print(f"  [dim]Cleaned up raw video[/dim]")
+                            console.print("  [dim]Cleaned up raw video[/dim]")
                         except OSError as e:
                             logger.warning(f"Failed to clean up raw video: {e}")
                     else:

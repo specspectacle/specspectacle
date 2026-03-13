@@ -1,10 +1,8 @@
 """Unit tests for audio module (TTS client and audio timeline builder)."""
 
-import asyncio
-import os
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -18,7 +16,6 @@ from specspectacle.audio.tts import (
     TTSAPIError,
     TTSClient,
     TTSConfig,
-    TTSConfigError,
     TTSError,
 )
 from specspectacle.executor.timeline import Timeline, TimelineEvent
@@ -419,7 +416,7 @@ class TestAudioGenerator:
     def test_generator_creates_output_dir(self, mock_tts_client, temp_dir):
         """Test AudioGenerator creates output directory."""
         nested_dir = temp_dir / "nested" / "audio"
-        generator = AudioGenerator(mock_tts_client, nested_dir)
+        AudioGenerator(mock_tts_client, nested_dir)
         assert nested_dir.exists()
 
     @patch.object(AudioGenerator, "_get_audio_duration", return_value=2.5)

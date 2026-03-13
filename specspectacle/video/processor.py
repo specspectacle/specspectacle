@@ -10,7 +10,6 @@ import os
 import tempfile
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from specspectacle.video.ffmpeg_utils import (
     FFmpegNotFoundError,
@@ -98,7 +97,7 @@ class VideoProcessor:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.temp_files: list[Path] = []
 
-    def convert_codec(self, codec: str = "libx264", output_path: Optional[Path] = None) -> Path:
+    def convert_codec(self, codec: str = "libx264", output_path: Path | None = None) -> Path:
         """
         Convert the video to a specified codec.
 
@@ -130,7 +129,7 @@ class VideoProcessor:
 
         return output_path
 
-    def normalize_fps(self, fps: int = 30, input_path: Optional[Path] = None) -> Path:
+    def normalize_fps(self, fps: int = 30, input_path: Path | None = None) -> Path:
         """
         Normalize video frame rate to the specified FPS.
 
@@ -165,7 +164,7 @@ class VideoProcessor:
     def resize(
         self,
         resolution: str,
-        input_path: Optional[Path] = None,
+        input_path: Path | None = None,
     ) -> Path:
         """
         Resize video to the target resolution.
@@ -218,7 +217,7 @@ class VideoProcessor:
     def compress(
         self,
         preset: CompressionPreset = CompressionPreset.MEDIUM,
-        input_path: Optional[Path] = None,
+        input_path: Path | None = None,
     ) -> Path:
         """
         Apply compression preset to the video.
@@ -265,7 +264,7 @@ class VideoProcessor:
         bitrate: str = "5000k",
         resolution: str = "1280x720",
         codec: str = "h264",
-        compression_preset: Optional[str] = None,
+        compression_preset: str | None = None,
     ) -> Path:
         """
         Full video processing pipeline.
@@ -360,7 +359,7 @@ class VideoProcessor:
         if video_codec == "libx265":
             args.extend(["-tag:v", "hvc1"])
 
-        logger.info(f"Processing video with FFmpeg...")
+        logger.info("Processing video with FFmpeg...")
         run_ffmpeg_command(args, input_file=self.input_path, output_file=final_output)
 
         # Get output file info
@@ -377,7 +376,7 @@ class VideoProcessor:
         self,
         video_path: Path,
         audio_path: Path,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> Path:
         """
         Merge an audio track with a video file.
@@ -463,7 +462,7 @@ class VideoProcessor:
         logger.debug(f"Running FFmpeg merge: {' '.join(cmd)}")
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
@@ -477,7 +476,7 @@ class VideoProcessor:
             from specspectacle.video.ffmpeg_utils import FFmpegExecutionError
 
             raise FFmpegExecutionError(
-                f"Audio-video merge failed",
+                "Audio-video merge failed",
                 e.returncode,
                 e.stderr,
             )
@@ -509,7 +508,7 @@ def process_video(
     bitrate: str = "5000k",
     resolution: str = "1280x720",
     codec: str = "h264",
-    compression_preset: Optional[str] = None,
+    compression_preset: str | None = None,
     keep_artifacts: bool = False,
 ) -> Path:
     """

@@ -15,7 +15,7 @@ try:
     import playwright
 
     PLAYWRIGHT_VERSION = playwright.__version__
-except:
+except Exception:
     PLAYWRIGHT_VERSION = "Not installed"
 
 

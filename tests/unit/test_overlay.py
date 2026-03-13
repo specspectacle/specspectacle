@@ -1,6 +1,5 @@
 """Unit tests for overlay module."""
 
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -445,7 +444,7 @@ class TestRenderOverlaysConvenienceFunction:
             OverlayConfig(text="Test 2"),
         ]
 
-        result = render_overlays_on_video(video_path, output_path, overlays)
+        render_overlays_on_video(video_path, output_path, overlays)
 
         mock_renderer.add_overlays.assert_called_once_with(overlays)
         mock_renderer.render.assert_called_once_with(output_path)

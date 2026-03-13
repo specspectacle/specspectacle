@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -81,7 +81,7 @@ def test_pipeline_basic_video(runner, simple_yaml, tmp_path):
     # For integration test, we ideally want real FFmpeg.
     # We will assume FFmpeg is present or handle the fallback.
 
-    result = runner.invoke(
+    runner.invoke(
         run,
         [
             str(simple_yaml),

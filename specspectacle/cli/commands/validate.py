@@ -1,7 +1,6 @@
 """Validate command - Validate YAML spec against schema."""
 
 import sys
-from pathlib import Path
 
 import click
 from pydantic import ValidationError
@@ -50,9 +49,7 @@ def validate(yaml_file: str):
         console.print(f"✓ Output: [cyan]{spec.output.filename}[/cyan]")
         console.print()
         console.print(
-            "[green]✓ Ready to run![/green] Use: [bold]specspectacle run {}[/bold]".format(
-                yaml_file
-            )
+            f"[green]✓ Ready to run![/green] Use: [bold]specspectacle run {yaml_file}[/bold]"
         )
 
         sys.exit(0)

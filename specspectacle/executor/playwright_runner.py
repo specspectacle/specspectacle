@@ -6,11 +6,10 @@ import asyncio
 import logging
 import time
 from pathlib import Path
-from typing import Optional, Tuple
 
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
-from specspectacle.executor.timeline import Timeline, TimelineEvent
+from specspectacle.executor.timeline import Timeline
 from specspectacle.parser.schema import SpecModel
 
 logger = logging.getLogger(__name__)
@@ -31,7 +30,7 @@ class BrowserRunner:
         self,
         spec: SpecModel,
         output_dir: str = "output/videos",
-        headless_override: Optional[bool] = None,
+        headless_override: bool | None = None,
     ):
         """
         Initialize the browser runner.
@@ -52,9 +51,9 @@ class BrowserRunner:
         self.timeline = Timeline(spec_name=spec.name)
 
         self.playwright = None
-        self.browser: Optional[Browser] = None
-        self.context: Optional[BrowserContext] = None
-        self.page: Optional[Page] = None
+        self.browser: Browser | None = None
+        self.context: BrowserContext | None = None
+        self.page: Page | None = None
 
     async def _inject_cursor_tracker(self) -> None:
         """
@@ -80,19 +79,19 @@ class BrowserRunner:
                 box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
             `;
             document.body.appendChild(cursor);
-            
+
             // Track mouse movements
             document.addEventListener('mousemove', (e) => {
                 cursor.style.left = e.pageX + 'px';
                 cursor.style.top = e.pageY + 'px';
             });
-            
+
             // Highlight on click
             document.addEventListener('mousedown', () => {
                 cursor.style.background = 'rgba(255, 0, 0, 0.6)';
                 cursor.style.transform = 'translate(-50%, -50%) scale(1.5)';
             });
-            
+
             document.addEventListener('mouseup', () => {
                 cursor.style.background = 'rgba(255, 0, 0, 0.3)';
                 cursor.style.transform = 'translate(-50%, -50%) scale(1)';
@@ -142,7 +141,7 @@ class BrowserRunner:
             f"Browser launched. Viewport: {self.spec.config.viewport.width}x{self.spec.config.viewport.height}"
         )
 
-    async def close(self) -> Tuple[Optional[Path], Path]:
+    async def close(self) -> tuple[Path | None, Path]:
         """
         Close the browser and save the video and timeline.
 
@@ -178,16 +177,14 @@ class BrowserRunner:
 
         return Path(video_path) if video_path else None, timeline_path
 
-    async def execute_spec(self) -> Tuple[Optional[Path], Path]:
+    async def execute_spec(self) -> tuple[Path | None, Path]:
         """
         Execute the entire YAML specification.
 
         Returns:
             Tuple of (video_path, timeline_path)
         """
-        import subprocess
 
-        from specspectacle.audio.tts import TTSClient
         from specspectacle.executor.actions import get_action_handler
 
         try:
@@ -305,7 +302,7 @@ class BrowserRunner:
                             narration_start_time=narration_actual_start_time,
                         )
 
-            logger.info(f"\n✓ Spec execution completed successfully")
+            logger.info("\n✓ Spec execution completed successfully")
             logger.info(f"  Total duration: {self.timeline.total_duration:.2f}s")
             logger.info(f"  Events recorded: {len(self.timeline.events)}")
             return await self.close()
@@ -407,8 +404,8 @@ class BrowserRunner:
 def run_spec(
     spec: SpecModel,
     output_dir: str = "output/videos",
-    headless_override: Optional[bool] = None,
-) -> Tuple[Optional[Path], Path]:
+    headless_override: bool | None = None,
+) -> tuple[Path | None, Path]:
     """
     Synchronous wrapper to execute a spec.
 

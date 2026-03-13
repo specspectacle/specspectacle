@@ -1,11 +1,9 @@
 """Unit tests for CLI commands."""
 
 import os
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from click.testing import CliRunner
 
 from specspectacle.cli.commands.config import config

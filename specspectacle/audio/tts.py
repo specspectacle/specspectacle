@@ -9,7 +9,6 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import edge_tts
 
@@ -56,7 +55,7 @@ class TTSClient:
     text-to-speech service. No API key required.
     """
 
-    def __init__(self, voice: Optional[str] = None, config: Optional[TTSConfig] = None):
+    def __init__(self, voice: str | None = None, config: TTSConfig | None = None):
         """
         Initialize the TTS generator.
 
@@ -86,7 +85,7 @@ class TTSClient:
         """Get the current TTS configuration."""
         return self._config
 
-    def generate_speech(self, text: str, output_path: Path, voice: Optional[str] = None) -> Path:
+    def generate_speech(self, text: str, output_path: Path, voice: str | None = None) -> Path:
         """
         Generate speech audio from text.
 

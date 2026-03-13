@@ -7,9 +7,9 @@ and rendering text overlays on video using FFmpeg's drawtext filter.
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from specspectacle.executor.timeline import Timeline, TimelineEvent
 from specspectacle.video.ffmpeg_utils import (
@@ -140,7 +140,7 @@ class OverlayTimestampCalculator:
         cls,
         spec: Any,  # SpecModel from parser.schema
         execution_timeline: Timeline,
-    ) -> List[OverlayConfig]:
+    ) -> list[OverlayConfig]:
         """
         Extract and calculate timings for all overlays in a spec.
 
@@ -159,7 +159,7 @@ class OverlayTimestampCalculator:
         timeline_start = execution_timeline.started_at or 0
 
         # Build event lookup
-        event_lookup: Dict[tuple, TimelineEvent] = {}
+        event_lookup: dict[tuple, TimelineEvent] = {}
         for event in execution_timeline.events:
             key = (event.flow_index, event.step_index)
             event_lookup[key] = event
@@ -192,7 +192,7 @@ class OverlayTimestampCalculator:
         offset: float,
         flow_index: int,
         step_index: int,
-        event_lookup: Dict[tuple, TimelineEvent],
+        event_lookup: dict[tuple, TimelineEvent],
         timeline_start: float,
     ) -> float:
         """
@@ -253,7 +253,7 @@ class OverlayRenderer:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.overlays: List[OverlayConfig] = []
+        self.overlays: list[OverlayConfig] = []
         self._video_info = get_video_info(self.video_path)
 
     def add_overlay(self, config: OverlayConfig) -> None:
@@ -265,7 +265,7 @@ class OverlayRenderer:
         """
         self.overlays.append(config)
 
-    def add_overlays(self, configs: List[OverlayConfig]) -> None:
+    def add_overlays(self, configs: list[OverlayConfig]) -> None:
         """
         Add multiple overlays to be rendered.
 
@@ -325,7 +325,7 @@ class OverlayRenderer:
         ]
 
         try:
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
@@ -343,7 +343,7 @@ class OverlayRenderer:
                 e.stderr,
             )
 
-    def _build_filter_complex(self, overlays: List[OverlayConfig]) -> str:
+    def _build_filter_complex(self, overlays: list[OverlayConfig]) -> str:
         """
         Build FFmpeg filter complex string for all overlays.
 
@@ -409,12 +409,12 @@ class OverlayRenderer:
             f"drawtext=text='{escaped_text}'",
             f"fontsize={config.font_size}",
             f"fontcolor={font_color}",
-            f"fontfile=/System/Library/Fonts/Helvetica.ttc",  # macOS default, fallback
+            "fontfile=/System/Library/Fonts/Helvetica.ttc",  # macOS default, fallback
             f"x={x_expr}",
             f"y={y_expr}",
-            f"box=1",
+            "box=1",
             f"boxcolor={bg_color}@{bg_alpha}",
-            f"boxborderw=10",
+            "boxborderw=10",
             f"enable='between(t,{config.start_time:.2f},{end_time:.2f})'",
         ]
 
@@ -457,7 +457,7 @@ class OverlayRenderer:
     def _escape_text(text: str) -> str:
         r"""
         Escape text for FFmpeg drawtext filter.
-        
+
         FFmpeg drawtext requires escaping of special characters when using
         subprocess (not shell). For drawtext text parameter:
         - Single quotes: ' -> '' (two single quotes)
@@ -487,7 +487,7 @@ class OverlayRenderer:
         return hex_color.lstrip("#")[:6]
 
     @staticmethod
-    def _hex_to_ffmpeg_color_with_alpha(hex_color: str) -> Tuple[str, float]:
+    def _hex_to_ffmpeg_color_with_alpha(hex_color: str) -> tuple[str, float]:
         """
         Convert hex color with alpha to FFmpeg format.
 
@@ -513,7 +513,7 @@ class OverlayRenderer:
 def render_overlays_on_video(
     video_path: Path,
     output_path: Path,
-    overlays: List[OverlayConfig],
+    overlays: list[OverlayConfig],
 ) -> Path:
     """
     Convenience function to render overlays on a video.

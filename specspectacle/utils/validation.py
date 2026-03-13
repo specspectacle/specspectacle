@@ -3,7 +3,6 @@ Common validation utilities for SpecSpectacle
 """
 
 import re
-from typing import Optional
 from urllib.parse import urlparse
 
 
@@ -73,7 +72,7 @@ def is_valid_url(url: str) -> bool:
         return False
 
 
-def validate_step_action_fields(action: str, **kwargs) -> Optional[str]:
+def validate_step_action_fields(action: str, **kwargs) -> str | None:
     """
     Validate that required fields are present for a given action.
 
@@ -106,9 +105,8 @@ def validate_step_action_fields(action: str, **kwargs) -> Optional[str]:
         return f"Action '{action}' requires field(s): {', '.join(missing)}"
 
     # Special case: scroll needs either selector OR direction
-    if action == "scroll":
-        if not kwargs.get("selector") and not kwargs.get("direction"):
-            return "Action 'scroll' requires either 'selector' or 'direction'"
+    if action == "scroll" and not kwargs.get("selector") and not kwargs.get("direction"):
+        return "Action 'scroll' requires either 'selector' or 'direction'"
 
     return None
 

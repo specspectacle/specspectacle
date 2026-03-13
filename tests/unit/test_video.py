@@ -1,15 +1,13 @@
 """Unit tests for video processing module."""
 
-import os
 import subprocess
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from specspectacle.video.ffmpeg_utils import (
-    FFmpegError,
     FFmpegExecutionError,
     FFmpegNotFoundError,
     check_ffmpeg_installed,
@@ -141,7 +139,7 @@ class TestVideoProcessor:
     def test_processor_creates_output_dir(self, dummy_video, temp_dir):
         """Test VideoProcessor creates output directory if needed."""
         output_dir = temp_dir / "nested" / "output"
-        processor = VideoProcessor(dummy_video, output_dir)
+        VideoProcessor(dummy_video, output_dir)
         assert output_dir.exists()
 
     def test_resolution_validation(self, dummy_video, temp_dir):

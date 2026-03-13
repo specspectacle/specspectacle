@@ -5,7 +5,6 @@ Provides a hierarchy of exceptions with rich context for debugging
 and user-friendly error messages.
 """
 
-from typing import Optional
 
 
 class ExecutorError(Exception):
@@ -16,7 +15,7 @@ class ExecutorError(Exception):
     making it easy to catch any executor error.
     """
 
-    def __init__(self, message: str, page_url: Optional[str] = None):
+    def __init__(self, message: str, page_url: str | None = None):
         self.message = message
         self.page_url = page_url
         super().__init__(self._format_message())
@@ -31,7 +30,7 @@ class ExecutorError(Exception):
             parts.append(f"💡 Suggestion: {suggestion}")
         return " | ".join(parts)
 
-    def get_suggestion(self) -> Optional[str]:
+    def get_suggestion(self) -> str | None:
         """Get actionable suggestion for fixing this error."""
         return None
 
@@ -50,8 +49,8 @@ class SelectorTimeoutError(ExecutorError):
         self,
         selector: str,
         timeout_ms: int,
-        page_url: Optional[str] = None,
-        action: Optional[str] = None,
+        page_url: str | None = None,
+        action: str | None = None,
     ):
         self.selector = selector
         self.timeout_ms = timeout_ms
@@ -61,7 +60,7 @@ class SelectorTimeoutError(ExecutorError):
             message = f"[{action}] {message}"
         super().__init__(message, page_url)
 
-    def get_suggestion(self) -> Optional[str]:
+    def get_suggestion(self) -> str | None:
         """Get actionable suggestion for fixing this error."""
         return (
             "Check if the selector is correct. Try using browser DevTools (F12) to "
@@ -82,8 +81,8 @@ class NavigationError(ExecutorError):
     def __init__(
         self,
         url: str,
-        page_url: Optional[str] = None,
-        reason: Optional[str] = None,
+        page_url: str | None = None,
+        reason: str | None = None,
     ):
         self.url = url
         self.reason = reason
@@ -92,7 +91,7 @@ class NavigationError(ExecutorError):
             message += f" - {reason}"
         super().__init__(message, page_url)
 
-    def get_suggestion(self) -> Optional[str]:
+    def get_suggestion(self) -> str | None:
         """Get actionable suggestion for fixing this error."""
         return (
             "Verify the URL is accessible in your browser. Check your internet connection. "
@@ -115,8 +114,8 @@ class ElementNotFoundError(ExecutorError):
     def __init__(
         self,
         selector: str,
-        page_url: Optional[str] = None,
-        action: Optional[str] = None,
+        page_url: str | None = None,
+        action: str | None = None,
     ):
         self.selector = selector
         self.action = action
@@ -125,7 +124,7 @@ class ElementNotFoundError(ExecutorError):
             message = f"[{action}] {message}"
         super().__init__(message, page_url)
 
-    def get_suggestion(self) -> Optional[str]:
+    def get_suggestion(self) -> str | None:
         """Get actionable suggestion for fixing this error."""
         return (
             "The element might not exist on the page. Use browser DevTools to verify the selector. "
@@ -148,8 +147,8 @@ class ActionError(ExecutorError):
         self,
         action: str,
         reason: str,
-        selector: Optional[str] = None,
-        page_url: Optional[str] = None,
+        selector: str | None = None,
+        page_url: str | None = None,
     ):
         self.action = action
         self.selector = selector

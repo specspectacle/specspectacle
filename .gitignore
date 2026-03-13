@@ -73,3 +73,6 @@ tmp/
 *_secrets.yaml
 
 .TODO
+
+references/
+.agent/

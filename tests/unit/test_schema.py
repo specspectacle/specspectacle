@@ -4,18 +4,26 @@ import pytest
 from pydantic import ValidationError
 
 from specspectacle.parser.schema import (
+    AssertStepModel,
+    BrowserBackStepModel,
+    BrowserForwardStepModel,
+    CheckStepModel,
+    ClickFirstVisibleStepModel,
     ClickStepModel,
     ConfigModel,
+    DragAndDropStepModel,
+    FileUploadStepModel,
     FlowModel,
-    NarrationConfigModel,
-    NarrationModel,
     NavigateStepModel,
     OutputModel,
     OverlayModel,
     OverlayStyleModel,
+    PressKeyStepModel,
     ScrollStepModel,
+    SelectFirstNonPlaceholderStepModel,
     SpecModel,
     TypeStepModel,
+    UncheckStepModel,
     ViewportModel,
     WaitStepModel,
 )
@@ -208,3 +216,171 @@ class TestSpecModel:
                 output=OutputModel(filename="test.mp4"),
                 flows=[],
             )
+
+
+class TestNewActionStepModels:
+    """Tests for the 8 new action step models."""
+
+    # --- press_key ---
+
+    def test_press_key_step_valid(self):
+        step = PressKeyStepModel(key="Enter")
+        assert step.action == "press_key"
+        assert step.key == "Enter"
+
+    def test_press_key_step_combo(self):
+        step = PressKeyStepModel(key="Control+a")
+        assert step.key == "Control+a"
+
+    def test_press_key_step_missing_key(self):
+        with pytest.raises(ValidationError):
+            PressKeyStepModel()
+
+    # --- browser_back ---
+
+    def test_browser_back_step_valid(self):
+        step = BrowserBackStepModel()
+        assert step.action == "browser_back"
+        assert step.timeout == 10000
+
+    def test_browser_back_step_custom_timeout(self):
+        step = BrowserBackStepModel(timeout=5000)
+        assert step.timeout == 5000
+
+    def test_browser_back_step_invalid_timeout(self):
+        with pytest.raises(ValidationError):
+            BrowserBackStepModel(timeout=500)  # below minimum of 1000
+
+    # --- browser_forward ---
+
+    def test_browser_forward_step_valid(self):
+        step = BrowserForwardStepModel()
+        assert step.action == "browser_forward"
+        assert step.timeout == 10000
+
+    # --- check ---
+
+    def test_check_step_valid(self):
+        step = CheckStepModel(selector="#agree")
+        assert step.action == "check"
+        assert step.selector == "#agree"
+
+    def test_check_step_missing_selector(self):
+        with pytest.raises(ValidationError):
+            CheckStepModel()
+
+    # --- uncheck ---
+
+    def test_uncheck_step_valid(self):
+        step = UncheckStepModel(selector="#agree")
+        assert step.action == "uncheck"
+        assert step.selector == "#agree"
+
+    def test_uncheck_step_missing_selector(self):
+        with pytest.raises(ValidationError):
+            UncheckStepModel()
+
+    # --- assert ---
+
+    def test_assert_step_visible_true(self):
+        step = AssertStepModel(selector="#banner", visible=True)
+        assert step.action == "assert"
+        assert step.visible is True
+        assert step.text is None
+
+    def test_assert_step_visible_false(self):
+        step = AssertStepModel(selector="#banner", visible=False)
+        assert step.visible is False
+
+    def test_assert_step_text(self):
+        step = AssertStepModel(selector="h1", text="Welcome")
+        assert step.text == "Welcome"
+        assert step.visible is None
+
+    def test_assert_step_both_conditions(self):
+        """Allow both visible and text to be set simultaneously."""
+        step = AssertStepModel(selector="h1", visible=True, text="Hello")
+        assert step.visible is True
+        assert step.text == "Hello"
+
+    def test_assert_step_no_condition_raises(self):
+        with pytest.raises(ValidationError):
+            AssertStepModel(selector="#banner")  # neither visible nor text
+
+    def test_assert_step_missing_selector(self):
+        with pytest.raises(ValidationError):
+            AssertStepModel(visible=True)
+
+    def test_assert_step_default_timeout(self):
+        step = AssertStepModel(selector="#el", visible=True)
+        assert step.timeout == 10000
+
+    # --- click_first_visible ---
+
+    def test_click_first_visible_step_valid(self):
+        step = ClickFirstVisibleStepModel(selector=".btn")
+        assert step.action == "click_first_visible"
+        assert step.selector == ".btn"
+
+    def test_click_first_visible_step_missing_selector(self):
+        with pytest.raises(ValidationError):
+            ClickFirstVisibleStepModel()
+
+    # --- select_first_non_placeholder ---
+
+    def test_select_first_non_placeholder_step_valid(self):
+        step = SelectFirstNonPlaceholderStepModel(selector="select#country")
+        assert step.action == "select_first_non_placeholder"
+        assert step.selector == "select#country"
+
+    def test_select_first_non_placeholder_missing_selector(self):
+        with pytest.raises(ValidationError):
+            SelectFirstNonPlaceholderStepModel()
+
+    # --- file_upload ---
+
+    def test_file_upload_step_single_file(self):
+        step = FileUploadStepModel(selector="input[type=file]", file="/tmp/doc.pdf")
+        assert step.action == "file_upload"
+        assert step.file == "/tmp/doc.pdf"
+        assert step.files is None
+
+    def test_file_upload_step_multiple_files(self):
+        step = FileUploadStepModel(
+            selector="input[type=file]",
+            files=["/tmp/a.pdf", "/tmp/b.pdf"],
+        )
+        assert step.files == ["/tmp/a.pdf", "/tmp/b.pdf"]
+        assert step.file is None
+
+    def test_file_upload_step_both_raises(self):
+        with pytest.raises(ValidationError):
+            FileUploadStepModel(
+                selector="input[type=file]",
+                file="/tmp/a.pdf",
+                files=["/tmp/b.pdf"],
+            )
+
+    def test_file_upload_step_neither_raises(self):
+        with pytest.raises(ValidationError):
+            FileUploadStepModel(selector="input[type=file]")
+
+    def test_file_upload_step_missing_selector(self):
+        with pytest.raises(ValidationError):
+            FileUploadStepModel(file="/tmp/doc.pdf")
+
+    # --- drag_and_drop ---
+
+    def test_drag_and_drop_step_valid(self):
+        step = DragAndDropStepModel(source="#item-1", target="#bucket")
+        assert step.action == "drag_and_drop"
+        assert step.source == "#item-1"
+        assert step.target == "#bucket"
+
+    def test_drag_and_drop_step_missing_source(self):
+        with pytest.raises(ValidationError):
+            DragAndDropStepModel(target="#bucket")
+
+    def test_drag_and_drop_step_missing_target(self):
+        with pytest.raises(ValidationError):
+            DragAndDropStepModel(source="#item-1")

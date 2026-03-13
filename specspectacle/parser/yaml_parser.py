@@ -3,7 +3,7 @@ YAML parser with Pydantic validation
 """
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 from pydantic import ValidationError
@@ -16,7 +16,7 @@ class YAMLParser:
     """Parser for SpecSpectacle YAML specifications."""
 
     @staticmethod
-    def load_yaml(filepath: str) -> Dict[str, Any]:
+    def load_yaml(filepath: str) -> dict[str, Any]:
         """
         Load YAML file and return as dictionary.
 
@@ -35,13 +35,13 @@ class YAMLParser:
         if not path.exists():
             raise FileNotFoundError(f"YAML file not found: {filepath}")
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             try:
                 data = yaml.safe_load(f)
                 if data is None:
                     raise yaml.YAMLError("Empty YAML file")
                 return data
-            except yaml.YAMLError as e:
+            except yaml.YAMLError:
                 logger.error(f"YAML syntax error in {filepath}")
                 raise
 
@@ -78,7 +78,7 @@ class YAMLParser:
             spec = SpecModel(**data)
             logger.debug(f"Successfully parsed spec: {spec.name} v{spec.version}")
             return spec
-        except ValidationError as e:
+        except ValidationError:
             logger.error("YAML validation failed")
             raise
 

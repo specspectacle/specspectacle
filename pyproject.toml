@@ -117,3 +117,48 @@ exclude = [
     "dist",
     ".eggs",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+    ".git",
+    "__pycache__",
+    "venv",
+    "venv313",
+    "build",
+    "dist",
+    ".eggs",
+    "references",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (undefined names, unused imports, etc.)
+    "I",   # isort (import ordering)
+    "UP",  # pyupgrade (modernise syntax)
+    "B",   # flake8-bugbear (likely bugs & design issues)
+    "SIM", # flake8-simplify (simplifiable code)
+]
+ignore = [
+    "E501",   # line too long — black handles this
+    "B008",   # do not perform function calls in default args (Pydantic uses this a lot)
+    "SIM108", # ternary operator — can reduce readability
+    "UP007",  # use X | Y for unions — keep Optional for clarity
+    "B904",   # do not assert blind exception
+    "B017",   # do not assert blind exception
+    "SIM105", # Replace `try`-`except`-`pass` with `with contextlib.suppress(Exception
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "S101",  # use of assert — fine in tests
+    "SIM",   # simplification warnings can obscure test intent
+]
+
+[tool.ruff.lint.isort]
+# Keep consistent with the standalone isort config above
+known-first-party = ["specspectacle"]
+

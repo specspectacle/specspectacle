@@ -1,12 +1,9 @@
-import os
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
 
 from specspectacle.cli.commands.run import run
-from specspectacle.executor.errors import SelectorTimeoutError
 
 
 @pytest.fixture
@@ -80,15 +77,15 @@ def test_ffmpeg_missing(mock_check, runner, tmp_path):
     content = """
 name: FFmpeg Test
 version: "0.1.0"
-config: 
+config:
   target_app: "https://example.com"
   viewport: {width: 1280, height: 720}
-output: 
+output:
   filename: output.mp4
   resolution: 1280x720
 flows:
   - name: Flow
-    steps: 
+    steps:
       - action: navigate
         url: https://example.com
       - action: wait
@@ -116,22 +113,22 @@ def test_tts_failure(mock_client_cls, runner, tmp_path):
     content = """
 name: TTS Error Test
 version: "0.1.0"
-config: 
+config:
   target_app: "https://example.com"
   viewport: {width: 1280, height: 720}
-narration: 
+narration:
   enabled: true
-output: 
+output:
   filename: output.mp4
   resolution: 1280x720
 flows:
   - name: Flow
-    steps: 
+    steps:
       - action: navigate
         url: https://example.com
       - action: wait
         duration: 1
-        narration: 
+        narration:
           text: "Hello"
 """
     f = tmp_path / "tts.yaml"

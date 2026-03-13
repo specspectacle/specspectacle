@@ -8,7 +8,7 @@ and generating audio segments synchronized with video execution.
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from specspectacle.audio.tts import TTSClient, TTSError
 from specspectacle.executor.timeline import Timeline, TimelineEvent
@@ -40,10 +40,10 @@ class AudioSegment:
     flow_name: str
     flow_index: int
     step_index: int = 0  # 0 means flow-level narration
-    start_time: Optional[float] = None
-    end_time: Optional[float] = None
-    output_path: Optional[Path] = None
-    duration: Optional[float] = None
+    start_time: float | None = None
+    end_time: float | None = None
+    output_path: Path | None = None
+    duration: float | None = None
 
     @staticmethod
     def estimate_duration(text: str) -> float:
@@ -108,7 +108,7 @@ class AudioTimeline:
     """
 
     spec_name: str
-    segments: List[AudioSegment] = field(default_factory=list)
+    segments: list[AudioSegment] = field(default_factory=list)
 
     @classmethod
     def from_spec_and_timeline(
@@ -132,7 +132,7 @@ class AudioTimeline:
         timeline_start = execution_timeline.started_at or 0
 
         # Build a lookup for timeline events by flow and step index
-        event_lookup: Dict[tuple, TimelineEvent] = {}
+        event_lookup: dict[tuple, TimelineEvent] = {}
         for event in execution_timeline.events:
             key = (event.flow_index, event.step_index)
             event_lookup[key] = event
@@ -179,11 +179,11 @@ class AudioTimeline:
         flow_name: str,
         flow_index: int,
         step_index: int,
-        events: List[TimelineEvent],
-        event_lookup: Dict[tuple, TimelineEvent],
+        events: list[TimelineEvent],
+        event_lookup: dict[tuple, TimelineEvent],
         is_flow_level: bool,
         timeline_start: float,
-    ) -> Optional[AudioSegment]:
+    ) -> AudioSegment | None:
         """
         Create an AudioSegment from a narration with calculated timing.
 
@@ -234,8 +234,8 @@ class AudioTimeline:
         offset: float,
         flow_index: int,
         step_index: int,
-        events: List[TimelineEvent],
-        event_lookup: Dict[tuple, TimelineEvent],
+        events: list[TimelineEvent],
+        event_lookup: dict[tuple, TimelineEvent],
         is_flow_level: bool,
         timeline_start: float,
     ) -> float:
@@ -264,9 +264,7 @@ class AudioTimeline:
             last_event = max(flow_events, key=lambda e: e.end_time)
 
             # Normalize timestamps to relative time (subtract timeline_start)
-            if timing == "before":
-                return (first_event.start_time - timeline_start) + offset
-            elif timing == "during":
+            if timing == "before" or timing == "during":
                 return (first_event.start_time - timeline_start) + offset
             else:  # after
                 return (last_event.end_time - timeline_start) + offset
@@ -277,14 +275,12 @@ class AudioTimeline:
                 return offset
 
             # Normalize timestamps to relative time (subtract timeline_start)
-            if timing == "before":
-                return (event.start_time - timeline_start) + offset
-            elif timing == "during":
+            if timing == "before" or timing == "during":
                 return (event.start_time - timeline_start) + offset
             else:  # after
                 return (event.end_time - timeline_start) + offset
 
-    def get_segments(self) -> List[AudioSegment]:
+    def get_segments(self) -> list[AudioSegment]:
         """Get all audio segments sorted by start time."""
         return sorted(self.segments, key=lambda s: s.start_time or 0)
 
@@ -325,7 +321,7 @@ class AudioGenerator:
         self,
         audio_timeline: AudioTimeline,
         skip_generation: bool = False,
-    ) -> List[AudioSegment]:
+    ) -> list[AudioSegment]:
         """
         Generate audio files for all segments in the timeline.
 
@@ -424,11 +420,11 @@ class AudioConcatenator:
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self._temp_files: List[Path] = []
+        self._temp_files: list[Path] = []
 
     def concatenate_segments(
         self,
-        segments: List[AudioSegment],
+        segments: list[AudioSegment],
         video_duration: float,
         output_path: Path,
     ) -> Path:
@@ -450,7 +446,6 @@ class AudioConcatenator:
             Path to the concatenated audio file
         """
         import subprocess
-        import tempfile
 
         if not segments:
             logger.info("No audio segments to concatenate, generating silence")
@@ -478,7 +473,7 @@ class AudioConcatenator:
             return self._generate_silence(video_duration, output_path)
 
         # Build list of audio files with gaps
-        audio_parts: List[Path] = []
+        audio_parts: list[Path] = []
         current_time = 0.0
 
         for segment in valid_segments:
@@ -502,7 +497,7 @@ class AudioConcatenator:
             trailing_silence = video_duration - current_time
             if trailing_silence > 0.01:
                 silence_path = self._generate_silence(
-                    trailing_silence, self.output_dir / f"silence_trailing.mp3"
+                    trailing_silence, self.output_dir / "silence_trailing.mp3"
                 )
                 audio_parts.append(silence_path)
                 self._temp_files.append(silence_path)
@@ -538,7 +533,7 @@ class AudioConcatenator:
 
             logger.debug(f"Running FFmpeg concat: {' '.join(cmd)}")
 
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
@@ -574,7 +569,7 @@ class AudioConcatenator:
             "-f",
             "lavfi",
             "-i",
-            f"anullsrc=r=44100:cl=stereo",
+            "anullsrc=r=44100:cl=stereo",
             "-t",
             str(duration),
             "-c:a",
@@ -592,7 +587,7 @@ class AudioConcatenator:
             logger.error(f"Failed to generate silence: {e.stderr}")
             raise RuntimeError(f"Silence generation failed: {e.stderr}")
 
-    def _create_concat_file(self, audio_paths: List[Path]) -> Path:
+    def _create_concat_file(self, audio_paths: list[Path]) -> Path:
         """
         Create FFmpeg concat demuxer file.
 

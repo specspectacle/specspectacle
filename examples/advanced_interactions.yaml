@@ -1,0 +1,171 @@
+name: "New Actions Demo"
+version: "0.1.0"
+description: "Manual test for all 8 advanced actions"
+
+config:
+  target_app: "https://the-internet.herokuapp.com"
+  viewport: {width: 1280, height: 720}
+  timeout: 10000
+  headless: false   # Set to true to run headless
+
+output:
+  filename: "new_actions_demo.mp4"
+  fps: 30
+
+narration:
+  enabled: false    # No TTS needed for manual testing
+
+flows:
+
+  # -----------------------------------------------------------------------
+  # 1. press_key — type into a real search input then press Enter
+  # -----------------------------------------------------------------------
+  - name: "press_key demo"
+    description: "Type into a field then press Tab and Enter"
+    steps:
+      - action: navigate
+        url: "https://the-internet.herokuapp.com/login"
+        pause: 1.0
+
+      - action: type
+        selector: "#username"
+        text: "tomsmith"
+        pause: 0.5
+
+      # Press Tab to move focus to password field
+      - action: press_key
+        key: "Tab"
+        pause: 0.5
+
+      # Press Shift+Tab to move back
+      - action: press_key
+        key: "Shift+Tab"
+        pause: 0.5
+
+  # -----------------------------------------------------------------------
+  # 2. browser_back + browser_forward
+  # -----------------------------------------------------------------------
+  - name: "browser_back and browser_forward demo"
+    description: "Navigate to a subpage, go back, then go forward"
+    steps:
+      - action: navigate
+        url: "https://the-internet.herokuapp.com"
+        pause: 1.0
+
+      - action: click
+        selector: "a[href='/checkboxes']"
+        pause: 1.5
+
+      - action: browser_back
+        pause: 1.5
+
+      - action: browser_forward
+        pause: 1.5
+
+  # -----------------------------------------------------------------------
+  # 3. check + uncheck
+  # -----------------------------------------------------------------------
+  - name: "check and uncheck demo"
+    description: "Check and uncheck checkboxes on /checkboxes"
+    steps:
+      - action: navigate
+        url: "https://the-internet.herokuapp.com/checkboxes"
+        pause: 1.0
+
+      # First checkbox is unchecked by default — check it
+      - action: check
+        selector: "input[type='checkbox']:first-of-type"
+        pause: 1.0
+
+      # Second checkbox is checked by default — uncheck it
+      - action: uncheck
+        selector: "input[type='checkbox']:last-of-type"
+        pause: 1.0
+
+  # -----------------------------------------------------------------------
+  # 4. assert — verify heading is visible and contains expected text
+  # -----------------------------------------------------------------------
+  - name: "assert demo"
+    description: "Assert a heading is visible and contains expected text"
+    steps:
+      - action: navigate
+        url: "https://the-internet.herokuapp.com/checkboxes"
+        pause: 1.0
+
+      - action: assert
+        selector: "h3"
+        visible: true
+        text: "Checkboxes"
+        pause: 0.5
+
+  # -----------------------------------------------------------------------
+  # 5. click_first_visible
+  # -----------------------------------------------------------------------
+  - name: "click_first_visible demo"
+    description: "Click the first visible link on the homepage"
+    steps:
+      - action: navigate
+        url: "https://the-internet.herokuapp.com"
+        pause: 1.0
+
+      # Multiple <li><a> links — click the first visible one
+      - action: click_first_visible
+        selector: "ul li a"
+        pause: 1.0
+
+      - action: browser_back
+        pause: 0.5
+
+  # -----------------------------------------------------------------------
+  # 6. select_first_non_placeholder
+  # -----------------------------------------------------------------------
+  - name: "select_first_non_placeholder demo"
+    description: "Select first real option from a dropdown with a placeholder"
+    steps:
+      - action: navigate
+        url: "https://the-internet.herokuapp.com/dropdown"
+        pause: 1.0
+
+      # Dropdown: value="" placeholder, then value="1" and value="2"
+      - action: select_first_non_placeholder
+        selector: "#dropdown"
+        pause: 1.0
+
+      - action: assert
+        selector: "#dropdown"
+        visible: true
+
+  # -----------------------------------------------------------------------
+  # 7. file_upload
+  # -----------------------------------------------------------------------
+  - name: "file_upload demo"
+    description: "Upload a file using the file input"
+    steps:
+      - action: navigate
+        url: "https://the-internet.herokuapp.com/upload"
+        pause: 1.0
+
+      # /tmp/specspectacle_test_upload.txt is created by: echo "test" > /tmp/specspectacle_test_upload.txt
+      - action: file_upload
+        selector: "#file-upload"
+        file: "/tmp/specspectacle_test_upload.txt"
+        pause: 1.0
+
+      - action: click
+        selector: "#file-submit"
+        pause: 1.5
+
+  # -----------------------------------------------------------------------
+  # 8. drag_and_drop
+  # -----------------------------------------------------------------------
+  - name: "drag_and_drop demo"
+    description: "Drag column A to the position of column B"
+    steps:
+      - action: navigate
+        url: "https://the-internet.herokuapp.com/drag_and_drop"
+        pause: 1.0
+
+      - action: drag_and_drop
+        source: "#column-a"
+        target: "#column-b"
+        pause: 1.5

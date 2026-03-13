@@ -9,7 +9,6 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +103,7 @@ def get_ffmpeg_version() -> str:
         raise FFmpegExecutionError("Failed to get FFmpeg version", e.returncode, e.stderr)
 
 
-def get_ffprobe_path() -> Optional[str]:
+def get_ffprobe_path() -> str | None:
     """
     Get the path to ffprobe executable.
 
@@ -115,9 +114,9 @@ def get_ffprobe_path() -> Optional[str]:
 
 
 def run_ffmpeg_command(
-    args: List[str],
-    input_file: Optional[Path] = None,
-    output_file: Optional[Path] = None,
+    args: list[str],
+    input_file: Path | None = None,
+    output_file: Path | None = None,
     overwrite: bool = True,
 ) -> subprocess.CompletedProcess:
     """

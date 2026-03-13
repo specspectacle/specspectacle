@@ -10,6 +10,8 @@ from pathlib import Path
 
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
+from rich.status import Status
 
 # Rich console for pretty output
 console = Console()
@@ -102,9 +104,6 @@ logger = setup_logger()
 cleanup_old_logs()
 
 
-# Progress tracking utilities
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
-from rich.status import Status
 
 
 def create_progress():

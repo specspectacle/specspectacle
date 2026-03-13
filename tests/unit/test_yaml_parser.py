@@ -1,6 +1,5 @@
 """Unit tests for YAML parser."""
 
-from pathlib import Path
 
 import pytest
 import yaml

@@ -6,12 +6,10 @@ import click
 from dotenv import load_dotenv
 
 from specspectacle import __version__
+from specspectacle.cli.commands import config, run, scaffold, validate
 
-# Load environment variables
 load_dotenv()
 
-# Import commands
-from specspectacle.cli.commands import config, run, scaffold, validate
 
 
 @click.group()
