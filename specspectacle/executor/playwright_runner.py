@@ -58,51 +58,126 @@ class BrowserRunner:
     async def _inject_cursor_tracker(self) -> None:
         """
         Inject a custom cursor tracker that follows mouse movements.
-        This makes the cursor visible in video recordings, even in headless mode.
+        Uses add_init_script for cross-navigation persistence.
+        Uses an IIFE wrapper to prevent Playwright evaluate from hanging on Promise values.
         """
         cursor_script = """
-        // Create cursor element
-        if (!document.getElementById('playwright-cursor')) {
-            const cursor = document.createElement('div');
-            cursor.id = 'playwright-cursor';
-            cursor.style.cssText = `
-                position: fixed;
-                width: 20px;
-                height: 20px;
-                border: 2px solid red;
-                border-radius: 50%;
-                pointer-events: none;
-                z-index: 2147483647;
-                transform: translate(-50%, -50%);
-                transition: all 0.1s ease;
-                background: rgba(255, 0, 0, 0.3);
-                box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
-            `;
-            document.body.appendChild(cursor);
+        (() => {
+            if (!window.__cursorInjected) {
+                window.__cursorInjected = true;
 
-            // Track mouse movements
-            document.addEventListener('mousemove', (e) => {
-                cursor.style.left = e.pageX + 'px';
-                cursor.style.top = e.pageY + 'px';
-            });
+                //SVG Arrow
+                const arrowSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L5.85 2.35a.5.5 0 0 0-.35.86z" fill="%23111" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 
-            // Highlight on click
-            document.addEventListener('mousedown', () => {
-                cursor.style.background = 'rgba(255, 0, 0, 0.6)';
-                cursor.style.transform = 'translate(-50%, -50%) scale(1.5)';
-            });
+                const cursor = document.createElement('div');
+                cursor.id = 'playwright-cursor';
+                cursor.style.cssText = `
+                    position: fixed;
+                    left: -100px;
+                    top: -100px;
+                    opacity: 0;
+                    width: 32px;
+                    height: 32px;
+                    pointer-events: none;
+                    z-index: 2147483647;
+                    background-image: url('${arrowSvg}');
+                    background-repeat: no-repeat;
+                    background-size: 28px 28px;
+                    background-position: top left;
+                    filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.4));
+                    transform: translate(-4px, -3px);
+                    transition: opacity 0.2s ease-out, transform 0.1s cubic-bezier(0.2, 0, 0, 1);
+                `;
 
-            document.addEventListener('mouseup', () => {
-                cursor.style.background = 'rgba(255, 0, 0, 0.3)';
-                cursor.style.transform = 'translate(-50%, -50%) scale(1)';
-            });
-        }
+                const rippleRing = document.createElement('div');
+                rippleRing.style.cssText = `
+                    position: absolute;
+                    top: 0; left: 0;
+                    width: 10px; height: 10px;
+                    border: 2px solid rgba(0, 150, 255, 0.8);
+                    border-radius: 50%;
+                    opacity: 0;
+                    transform: scale(0.5);
+                    pointer-events: none;
+                    transition: transform 0.3s cubic-bezier(0.1, 0.8, 0.3, 1), opacity 0.3s ease-out;
+                `;
+                cursor.appendChild(rippleRing);
+
+                // Append to body when ready
+                const initCursor = () => {
+                    if (!document.body) { requestAnimationFrame(initCursor); return; }
+                    document.body.appendChild(cursor);
+                };
+                initCursor();
+
+                window._mouseX = 0;
+                window._mouseY = 0;
+                let isAnimating = false;
+
+                document.addEventListener('mousemove', (e) => {
+                    window._mouseX = e.clientX;
+                    window._mouseY = e.clientY;
+                    if (!isAnimating) {
+                        cursor.style.opacity = '1';
+                        cursor.style.left = e.clientX + 'px';
+                        cursor.style.top = e.clientY + 'px';
+                    }
+                }, { passive: true });
+
+                document.addEventListener('mousedown', () => {
+                    cursor.style.transform = 'translate(-4px, -3px) scale(0.9)';
+                    rippleRing.style.transition = 'none';
+                    rippleRing.style.opacity = '1';
+                    rippleRing.style.transform = 'translate(-40%, -40%) scale(0.5)';
+                    void rippleRing.offsetWidth;
+                    rippleRing.style.transition = 'transform 0.4s cubic-bezier(0.1, 0.8, 0.3, 1), opacity 0.4s ease-out';
+                    rippleRing.style.transform = 'translate(-40%, -40%) scale(5)';
+                    rippleRing.style.opacity = '0';
+                }, { passive: true });
+
+                document.addEventListener('mouseup', () => {
+                    cursor.style.transform = 'translate(-4px, -3px) scale(1)';
+                }, { passive: true });
+
+                // JS-side animation using setTimeout for real-time steps.
+                // IMPORTANT: requestAnimationFrame in headless Chrome fires at 1000s+ fps
+                // (not 60fps), so the cursor would teleport instantly. setTimeout
+                // always respects real wall-clock time, even in headless mode.
+                window.__animateCursor = function(pts, durationMs) {
+                    return new Promise(resolve => {
+                        if (!pts || pts.length === 0) { resolve(); return; }
+                        isAnimating = true;
+                        cursor.style.opacity = '1';
+
+                        const delayPerFrame = Math.max(8, durationMs / pts.length);
+                        let i = 0;
+
+                        function nextFrame() {
+                            if (i >= pts.length) {
+                                isAnimating = false;
+                                resolve();
+                                return;
+                            }
+                            cursor.style.left = pts[i][0] + 'px';
+                            cursor.style.top = pts[i][1] + 'px';
+                            window._mouseX = pts[i][0];
+                            window._mouseY = pts[i][1];
+                            i++;
+                            setTimeout(nextFrame, delayPerFrame);
+                        }
+                        setTimeout(nextFrame, 0);
+                    });
+                };
+            }
+        })();
         """
 
         try:
+            # add_init_script ensures cursor persists across page navigations
+            await self.context.add_init_script(cursor_script)
+            # Also inject into the current page immediately
             await self.page.evaluate(cursor_script)
         except Exception as e:
-            # Don't fail if cursor injection fails
             logger.debug(f"Could not inject cursor tracker: {e}")
 
     async def launch(self) -> None:

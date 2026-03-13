@@ -1,0 +1,21 @@
+name: Demo MoveTo
+version: 0.1.0
+config:
+  target_app: "https://example.com"
+  headless: true
+output:
+  filename: "demo_moveto.mp4"
+flows:
+  - name: "Test Flow"
+    description: "Testing cursor"
+    steps:
+      - action: "navigate"
+        url: "https://example.com"
+      - action: "moveTo"
+        selector: "h1"
+        pause: 1
+      - action: "moveTo"
+        selector: "a"
+        pause: 1
+      - action: "click"
+        selector: "a"

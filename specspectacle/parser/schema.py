@@ -168,6 +168,13 @@ class TypeStepModel(BaseStepModel):
     selector: str = Field(..., description="CSS selector")
     text: str = Field(..., description="Text to type")
     delay: int = Field(default=0, ge=0, description="Delay between keystrokes in ms")
+    natural_typing: bool = Field(
+        default=True,
+        description=(
+            "When True (default), types character-by-character with human-like timing. "
+            "Set False to use the legacy bulk-fill path."
+        ),
+    )
 
     @field_validator("selector")
     @classmethod
@@ -394,6 +401,24 @@ class DragAndDropStepModel(BaseStepModel):
         return v
 
 
+class MoveToStepModel(BaseStepModel):
+    """Move cursor to an element or text."""
+
+    action: Literal["moveTo"] = "moveTo"
+    selector: str | None = Field(default=None, description="CSS selector")
+    text: str | None = Field(default=None, description="Text to move to")
+
+    @model_validator(mode="after")
+    def validate_moveto_params(self):
+        if not self.selector and not self.text:
+            raise ValueError("moveTo action requires either 'selector' or 'text'")
+        if self.selector and self.text:
+            raise ValueError("moveTo action cannot have both 'selector' and 'text'")
+        if self.selector and not is_valid_selector(self.selector):
+            raise ValueError(f"Invalid selector: {self.selector}")
+        return self
+
+
 # Union of all step types with discriminated union based on 'action' field
 # This ensures Pydantic only validates against the matching model, not all models
 StepModel = Annotated[
@@ -417,6 +442,7 @@ StepModel = Annotated[
         AssertStepModel,
         FileUploadStepModel,
         DragAndDropStepModel,
+        MoveToStepModel,
     ],
     Field(discriminator="action"),
 ]
@@ -474,6 +500,7 @@ __all__ = [
     "AssertStepModel",
     "FileUploadStepModel",
     "DragAndDropStepModel",
+    "MoveToStepModel",
     "StepModel",
     "FlowModel",
     "SpecModel",

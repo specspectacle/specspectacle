@@ -29,6 +29,7 @@ from specspectacle.parser.schema import (
     DragAndDropStepModel,
     FileUploadStepModel,
     HoverStepModel,
+    MoveToStepModel,
     NavigateStepModel,
     PressKeyStepModel,
     ScreenshotStepModel,
@@ -89,6 +90,22 @@ async def wait_action(page: Page, step: WaitStepModel) -> None:
     logger.info("✓ Wait completed")
 
 
+async def _smooth_move_to_selector(page: Page, selector: str) -> None:
+    """Move the visual cursor smoothly to a selector's center before interacting."""
+    from specspectacle.executor.cursor_motion import move_cursor_smoothly
+
+    try:
+        box = await page.locator(selector).first.bounding_box()
+        if not box:
+            return
+        to_x = box["x"] + box["width"] / 2
+        to_y = box["y"] + box["height"] / 2
+        current = await page.evaluate("() => ({ x: window._mouseX || 0, y: window._mouseY || 0 })")
+        await move_cursor_smoothly(page, current["x"], current["y"], to_x, to_y)
+    except Exception:
+        pass  # Never fail an action due to cursor animation
+
+
 async def click_action(page: Page, step: ClickStepModel) -> None:
     """
     Click an element.
@@ -101,6 +118,7 @@ async def click_action(page: Page, step: ClickStepModel) -> None:
     try:
         # Wait for element to be visible before clicking
         await page.wait_for_selector(step.selector, state="visible", timeout=10000)
+        await _smooth_move_to_selector(page, step.selector)
         await page.click(step.selector)
         logger.info(f"✓ Clicked {step.selector}")
 
@@ -128,6 +146,10 @@ async def type_action(page: Page, step: TypeStepModel) -> None:
     """
     Type text into a field.
 
+    When ``step.natural_typing`` is True (the default) text is typed
+    character-by-character with human-like timing variance,  When False, the legacy bulk-fill or
+    constant-delay path is used.
+
     Args:
         page: Playwright page object
         step: Type step configuration
@@ -136,12 +158,17 @@ async def type_action(page: Page, step: TypeStepModel) -> None:
     try:
         # Wait for input element to be visible
         await page.wait_for_selector(step.selector, state="visible", timeout=10000)
+        await _smooth_move_to_selector(page, step.selector)
 
         # Clear existing text first
         await page.fill(step.selector, "")
 
-        # Type with delay if specified
-        if step.delay > 0:
+        if step.natural_typing:
+            from specspectacle.executor.natural_typing import type_text_naturally
+
+            base_delay = step.delay if step.delay > 0 else 100
+            await type_text_naturally(page, step.text, base_delay_ms=base_delay)
+        elif step.delay > 0:
             await page.type(step.selector, step.text, delay=step.delay)
         else:
             await page.fill(step.selector, step.text)
@@ -203,6 +230,70 @@ async def wait_for_selector_action(page: Page, step: WaitForSelectorStepModel) -
         )
 
 
+async def moveto_action(page: Page, step: MoveToStepModel) -> None:
+    """
+    Move the cursor to an element or text smoothly.
+
+    Args:
+        page: Playwright page object
+        step: MoveTo step configuration
+    """
+    from specspectacle.executor.cursor_motion import move_cursor_smoothly
+
+    logger.info(f"Moving to: {step.selector or step.text}")
+    try:
+        to_x, to_y = 0.0, 0.0
+
+        if step.selector:
+            await page.wait_for_selector(step.selector, state="visible", timeout=10000)
+            box = await page.locator(step.selector).first.bounding_box()
+            if not box:
+                raise ElementNotFoundError(
+                    selector=step.selector,
+                    page_url=page.url,
+                    action="moveTo",
+                )
+            to_x = box["x"] + box["width"] / 2
+            to_y = box["y"] + box["height"] / 2
+        elif step.text:
+            target = page.get_by_text(step.text).first
+            await target.wait_for(state="visible", timeout=10000)
+            box = await target.bounding_box()
+            if not box:
+                raise ElementNotFoundError(
+                    selector=f"text={step.text}",
+                    page_url=page.url,
+                    action="moveTo",
+                )
+            to_x = box["x"] + box["width"] / 2
+            to_y = box["y"] + box["height"] / 2
+
+        current_pos = await page.evaluate(
+            "() => ({ x: window._mouseX || 0, y: window._mouseY || 0 })"
+        )
+        await move_cursor_smoothly(page, current_pos["x"], current_pos["y"], to_x, to_y)
+        logger.info(f"✓ Moved to {step.selector or step.text}")
+
+        if step.pause > 0:
+            await asyncio.sleep(step.pause)
+    except PlaywrightTimeoutError:
+        raise SelectorTimeoutError(
+            selector=step.selector or f"text={step.text}",
+            timeout_ms=10000,
+            page_url=page.url,
+            action="moveTo",
+        )
+    except Exception as e:
+        if not isinstance(e, (ElementNotFoundError, SelectorTimeoutError)):
+            raise ActionError(
+                action="moveTo",
+                reason=str(e),
+                selector=step.selector or f"text={step.text}",
+                page_url=page.url,
+            )
+        raise
+
+
 async def hover_action(page: Page, step: HoverStepModel) -> None:
     """
     Hover over an element.
@@ -214,6 +305,7 @@ async def hover_action(page: Page, step: HoverStepModel) -> None:
     logger.info(f"Hovering over: {step.selector}")
     try:
         await page.wait_for_selector(step.selector, state="visible", timeout=10000)
+        await _smooth_move_to_selector(page, step.selector)
         await page.hover(step.selector)
         logger.info(f"✓ Hovered over {step.selector}")
 
@@ -752,6 +844,7 @@ ACTION_HANDLERS = {
     "select_first_non_placeholder": select_first_non_placeholder_action,
     "file_upload": file_upload_action,
     "drag_and_drop": drag_and_drop_action,
+    "moveTo": moveto_action,
 }
 
 

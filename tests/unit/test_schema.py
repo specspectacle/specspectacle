@@ -128,6 +128,16 @@ class TestStepModels:
         assert step.text == "user@example.com"
         assert step.delay == 100
 
+    def test_type_step_natural_typing_default_true(self):
+        """natural_typing defaults to True for human-like character-by-character typing."""
+        step = TypeStepModel(selector="#email", text="hello")
+        assert step.natural_typing is True
+
+    def test_type_step_natural_typing_can_be_disabled(self):
+        """natural_typing can be set to False to use the legacy bulk-fill path."""
+        step = TypeStepModel(selector="#email", text="hello", natural_typing=False)
+        assert step.natural_typing is False
+
     def test_wait_step(self):
         """Test wait step model."""
         step = WaitStepModel(duration=2.5)

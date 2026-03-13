@@ -9,7 +9,7 @@ config:
   headless: false   # Set to true to run headless
 
 output:
-  filename: "new_actions_demo.mp4"
+  filename: "advanced_interactions.mp4"
   fps: 30
 
 narration:
