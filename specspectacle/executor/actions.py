@@ -7,6 +7,7 @@ and a typed step model from the schema.
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -106,7 +107,7 @@ async def _smooth_move_to_selector(page: Page, selector: str) -> None:
         pass  # Never fail an action due to cursor animation
 
 
-async def click_action(page: Page, step: ClickStepModel) -> None:
+async def click_action(page: Page, step: ClickStepModel) -> list[float] | None:
     """
     Click an element.
 
@@ -119,11 +120,17 @@ async def click_action(page: Page, step: ClickStepModel) -> None:
         # Wait for element to be visible before clicking
         await page.wait_for_selector(step.selector, state="visible", timeout=10000)
         await _smooth_move_to_selector(page, step.selector)
-        await page.click(step.selector)
+
+        await page.mouse.down()
+        ts = [time.time()]
+        await page.mouse.up()
+
         logger.info(f"✓ Clicked {step.selector}")
 
         if step.pause > 0:
             await asyncio.sleep(step.pause)
+
+        return ts
     except PlaywrightTimeoutError:
         logger.error(f"Timeout waiting for selector '{step.selector}' on page: {page.url}")
         raise SelectorTimeoutError(
@@ -142,7 +149,7 @@ async def click_action(page: Page, step: ClickStepModel) -> None:
         )
 
 
-async def type_action(page: Page, step: TypeStepModel) -> None:
+async def type_action(page: Page, step: TypeStepModel) -> list[float] | None:
     """
     Type text into a field.
 
@@ -163,20 +170,25 @@ async def type_action(page: Page, step: TypeStepModel) -> None:
         # Clear existing text first
         await page.fill(step.selector, "")
 
+        ts = []
         if step.natural_typing:
             from specspectacle.executor.natural_typing import type_text_naturally
 
             base_delay = step.delay if step.delay > 0 else 100
-            await type_text_naturally(page, step.text, base_delay_ms=base_delay)
+            ts = await type_text_naturally(page, step.text, base_delay_ms=base_delay)
         elif step.delay > 0:
+            ts = [time.time()]
             await page.type(step.selector, step.text, delay=step.delay)
         else:
+            ts = [time.time()]
             await page.fill(step.selector, step.text)
 
         logger.info(f"✓ Typed into {step.selector}")
 
         if step.pause > 0:
             await asyncio.sleep(step.pause)
+
+        return ts
     except PlaywrightTimeoutError:
         logger.error(f"Timeout waiting for selector '{step.selector}' on page: {page.url}")
         raise SelectorTimeoutError(
@@ -447,7 +459,7 @@ async def select_action(page: Page, step: SelectStepModel) -> None:
         )
 
 
-async def press_key_action(page: Page, step: PressKeyStepModel) -> None:
+async def press_key_action(page: Page, step: PressKeyStepModel) -> list[float] | None:
     """
     Press a keyboard key or key combination.
 
@@ -457,11 +469,15 @@ async def press_key_action(page: Page, step: PressKeyStepModel) -> None:
     """
     logger.info(f"Pressing key: {step.key}")
     try:
+        ts = [time.time()]
         await page.keyboard.press(step.key)
+
         logger.info(f"✓ Pressed key: {step.key}")
 
         if step.pause > 0:
             await asyncio.sleep(step.pause)
+
+        return ts
     except Exception as e:
         logger.error(f"press_key failed for '{step.key}': {e}")
         raise ActionError(
@@ -647,7 +663,7 @@ async def assert_action(page: Page, step: AssertStepModel) -> None:
         )
 
 
-async def click_first_visible_action(page: Page, step: ClickFirstVisibleStepModel) -> None:
+async def click_first_visible_action(page: Page, step: ClickFirstVisibleStepModel) -> list[float] | None:
     """
     Click the first visible element matching the selector.
 
@@ -665,11 +681,25 @@ async def click_first_visible_action(page: Page, step: ClickFirstVisibleStepMode
 
         for locator in locators:
             if await locator.is_visible():
-                await locator.click()
+                box = await locator.bounding_box()
+                if not box:
+                    continue
+                to_x = box["x"] + box["width"] / 2
+                to_y = box["y"] + box["height"] / 2
+
+                # Smooth move first before clicking
+                from specspectacle.executor.cursor_motion import move_cursor_smoothly
+                current = await page.evaluate("() => ({ x: window._mouseX || 0, y: window._mouseY || 0 })")
+                await move_cursor_smoothly(page, current["x"], current["y"], to_x, to_y)
+
+                await page.mouse.down()
+                ts = [time.time()]
+                await page.mouse.up()
+
                 logger.info(f"✓ Clicked first visible {step.selector}")
                 if step.pause > 0:
                     await asyncio.sleep(step.pause)
-                return
+                return ts
 
         raise ElementNotFoundError(
             selector=step.selector,

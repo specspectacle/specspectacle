@@ -1,0 +1,108 @@
+name: "Keystroke HUD & Sound Effects Demo"
+version: "0.1.0"
+description: "Demonstrates keystroke HUD overlay and sound effects on a form interaction"
+
+config:
+  target_app: "https://www.saucedemo.com"
+  viewport: {width: 1280, height: 720}
+  timeout: 5000
+  headless: false
+
+  # ── Keystroke HUD (shows key labels on screen) ──
+  hud_theme:
+    font_size: 48
+    position: bottom
+    background: "rgba(0, 0, 0, 0.65)"
+    color: "rgba(255, 255, 255, 0.9)"
+    border_radius: 14
+
+  # ── Sound effects (mixed into final video) ──
+  sfx:
+    click: 1          # built-in variant 1 (options: 1-4 or a custom path)
+    key: 2            # built-in variant 2
+
+output:
+  filename: "hud_sfx_demo.mp4"
+  fps: 30
+  resolution: "1280x720"
+
+narration:
+  enabled: false
+
+flows:
+  - name: "Login with HUD & SFX"
+    steps:
+      - action: navigate
+        url: "https://www.saucedemo.com"
+        overlay:
+          text: "Sauce Demo – Login"
+          position: "top"
+          duration: 2.0
+
+      - action: wait_for_selector
+        selector: "#user-name"
+
+      # ── Type username (triggers key SFX events) ──
+      - action: type
+        selector: "#user-name"
+        text: "standard_user"
+        delay: 80
+
+      - action: wait
+        duration: 0.5
+
+      # ── Type password ──
+      - action: type
+        selector: "#password"
+        text: "secret_sauce"
+        delay: 80
+
+      - action: wait
+        duration: 0.3
+
+      # ── Press Tab to move focus (HUD shows "Tab") ──
+      - action: press_key
+        key: "Tab"
+        label: "Tab"
+        pause: 0.5
+
+      # ── Press Enter to submit (HUD shows "Enter ↵") ──
+      - action: press_key
+        key: "Enter"
+        label: "Enter ↵"
+        pause: 0.5
+
+      - action: wait_for_selector
+        selector: ".inventory_list"
+        overlay:
+          text: "Logged in!"
+          position: "bottom"
+          duration: 2.0
+
+      - action: wait
+        duration: 1.0
+
+  - name: "Keyboard Shortcuts Demo"
+    steps:
+      # ── Click a product (triggers click SFX) ──
+      - action: click
+        selector: "#item_4_title_link"
+        overlay:
+          text: "Viewing product details"
+          position: "top"
+
+      - action: wait
+        duration: 1.0
+
+      # ── Select all text with Ctrl+A (HUD shows "Ctrl+A") ──
+      - action: press_key
+        key: "Control+a"
+        label: "Ctrl+A"
+        pause: 0.6
+
+      # ── Go back with browser back ──
+      - action: browser_back
+        pause: 0.5
+
+      - action: wait
+        duration: 1.0

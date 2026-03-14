@@ -14,6 +14,7 @@ from specspectacle.parser.schema import (
     DragAndDropStepModel,
     FileUploadStepModel,
     FlowModel,
+    KeystrokeHudThemeModel,
     NavigateStepModel,
     OutputModel,
     OverlayModel,
@@ -21,6 +22,7 @@ from specspectacle.parser.schema import (
     PressKeyStepModel,
     ScrollStepModel,
     SelectFirstNonPlaceholderStepModel,
+    SfxConfigModel,
     SpecModel,
     TypeStepModel,
     UncheckStepModel,
@@ -394,3 +396,105 @@ class TestNewActionStepModels:
     def test_drag_and_drop_step_missing_target(self):
         with pytest.raises(ValidationError):
             DragAndDropStepModel(source="#item-1")
+
+
+class TestKeystrokeHudThemeModel:
+    """Test KeystrokeHudThemeModel validation."""
+
+    def test_default_values(self):
+        """All fields have sensible defaults."""
+        theme = KeystrokeHudThemeModel()
+        assert theme.background == "rgba(0,0,0,0.5)"
+        assert theme.color == "rgba(255,255,255,0.85)"
+        assert theme.font_size == 56
+        assert theme.border_radius == 18
+        assert theme.position == "bottom"
+
+    def test_custom_values(self):
+        """Custom values are accepted."""
+        theme = KeystrokeHudThemeModel(
+            background="rgba(255,0,0,0.8)",
+            color="#FFFFFF",
+            font_size=32,
+            border_radius=8,
+            position="top",
+        )
+        assert theme.font_size == 32
+        assert theme.position == "top"
+
+    def test_invalid_position_rejected(self):
+        """Only 'top' and 'bottom' are valid positions."""
+        with pytest.raises(ValidationError):
+            KeystrokeHudThemeModel(position="left")
+
+
+class TestSfxConfigModel:
+    """Test SfxConfigModel validation."""
+
+    def test_default_disabled(self):
+        """SFX is disabled by default (both None)."""
+        sfx = SfxConfigModel()
+        assert sfx.click is None
+        assert sfx.key is None
+
+    def test_variant_int(self):
+        """Built-in variant integers 1-4 are allowed."""
+        sfx = SfxConfigModel(click=2, key=3)
+        assert sfx.click == 2
+        assert sfx.key == 3
+
+    def test_custom_path_string(self):
+        """Custom file path strings are allowed."""
+        sfx = SfxConfigModel(click="/path/to/click.mp3")
+        assert sfx.click == "/path/to/click.mp3"
+
+    def test_invalid_variant_rejected(self):
+        """Variant integers outside 1-4 are rejected."""
+        with pytest.raises(ValidationError):
+            SfxConfigModel(click=5)
+
+    def test_zero_variant_rejected(self):
+        """Zero is not a valid variant."""
+        with pytest.raises(ValidationError):
+            SfxConfigModel(click=0)
+
+
+class TestPressKeyStepModelLabel:
+    """Test the label field on PressKeyStepModel for HUD display."""
+
+    def test_label_defaults_to_none(self):
+        """label is optional and defaults to None."""
+        step = PressKeyStepModel(key="Enter")
+        assert step.label is None
+
+    def test_label_custom_value(self):
+        """label can be set for HUD display text."""
+        step = PressKeyStepModel(key="Control+s", label="Ctrl+S")
+        assert step.label == "Ctrl+S"
+
+
+class TestConfigModelHudSfx:
+    """Test hud_theme and sfx fields on ConfigModel."""
+
+    def test_hud_theme_defaults_to_none(self):
+        """hud_theme is None (disabled) by default."""
+        config = ConfigModel(target_app="https://example.com")
+        assert config.hud_theme is None
+
+    def test_sfx_defaults_to_none(self):
+        """sfx is None (disabled) by default."""
+        config = ConfigModel(target_app="https://example.com")
+        assert config.sfx is None
+
+    def test_hud_theme_can_be_set(self):
+        """hud_theme accepts a KeystrokeHudThemeModel."""
+        theme = KeystrokeHudThemeModel(font_size=32)
+        config = ConfigModel(target_app="https://example.com", hud_theme=theme)
+        assert config.hud_theme.font_size == 32
+
+    def test_sfx_can_be_set(self):
+        """sfx accepts a SfxConfigModel."""
+        sfx = SfxConfigModel(click=1, key=2)
+        config = ConfigModel(target_app="https://example.com", sfx=sfx)
+        assert config.sfx.click == 1
+        assert config.sfx.key == 2

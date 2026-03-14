@@ -280,6 +280,30 @@ def run(
                             console.print(f"    [yellow]⚠ Audio integration failed:[/yellow] {e}")
                             logger.exception("Audio processing error")
 
+                    # 2.5 Sound Effects (SFX)
+                    if spec.config.sfx and timeline.sound_events:
+                        console.print(f"  [bold]Mixing {len(timeline.sound_events)} Sound Events...[/bold]")
+                        try:
+                            from specspectacle.audio.sfx import resolve_sfx_path
+                            click_path = resolve_sfx_path(spec.config.sfx.click, "click")
+                            key_path = resolve_sfx_path(spec.config.sfx.key, "key")
+
+                            if click_path or key_path:
+                                sfx_video = processor.apply_sfx(
+                                    current_video_path,
+                                    timeline.sound_events,
+                                    click_path,
+                                    key_path,
+                                )
+                                # Cleanup intermediate video
+                                if not keep_artifacts and current_video_path != raw_video_path and current_video_path != sfx_video:
+                                    with contextlib.suppress(OSError):
+                                        current_video_path.unlink()
+                                current_video_path = sfx_video
+                        except Exception as e:
+                            console.print(f"    [yellow]⚠ SFX integration failed:[/yellow] {e}")
+                            logger.exception("SFX processing error")
+
                     # 3. Text Overlays
                     if not no_overlays:
                         overlays = OverlayTimestampCalculator.calculate_overlays(spec, timeline)

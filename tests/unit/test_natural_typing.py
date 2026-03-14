@@ -4,8 +4,7 @@ Tests drive implementation via red-green-refactor (TDD vertical slices).
 All tests mock the Playwright page to stay pure unit tests.
 """
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

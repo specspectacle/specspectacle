@@ -22,6 +22,39 @@ class ViewportModel(BaseModel):
     height: int = Field(default=720, ge=600, le=2160)
 
 
+class KeystrokeHudThemeModel(BaseModel):
+    """Appearance configuration for the keystroke HUD overlay."""
+
+    background: str = Field(default="rgba(0,0,0,0.5)", description="CSS background")
+    color: str = Field(default="rgba(255,255,255,0.85)", description="CSS text color")
+    font_size: int = Field(default=56, ge=8, le=200, description="Font size in px")
+    font_family: str = Field(
+        default='"Geist", -apple-system, sans-serif', description="CSS font-family"
+    )
+    border_radius: int = Field(default=18, ge=0, description="Border radius in px")
+    position: Literal["top", "bottom"] = Field(
+        default="bottom", description="Vertical position on screen"
+    )
+
+
+class SfxConfigModel(BaseModel):
+    """Sound effects configuration for click and key events."""
+
+    click: int | str | None = Field(
+        default=None, description="Built-in variant (1-4) or custom file path"
+    )
+    key: int | str | None = Field(
+        default=None, description="Built-in variant (1-4) or custom file path"
+    )
+
+    @field_validator("click", "key")
+    @classmethod
+    def validate_variant(cls, v: int | str | None) -> int | str | None:
+        if isinstance(v, int) and not (1 <= v <= 4):
+            raise ValueError(f"Built-in variant must be 1-4, got {v}")
+        return v
+
+
 class ConfigModel(BaseModel):
     """Global configuration for the demo."""
 
@@ -30,6 +63,12 @@ class ConfigModel(BaseModel):
     timeout: int = Field(default=5000, ge=1000, description="Default timeout in milliseconds")
     headless: bool = Field(default=True)
     slow_motion: int = Field(default=0, ge=0, description="Slow motion delay in milliseconds")
+    hud_theme: KeystrokeHudThemeModel | None = Field(
+        default=None, description="Keystroke HUD overlay theme (None = disabled)"
+    )
+    sfx: SfxConfigModel | None = Field(
+        default=None, description="Sound effects config (None = disabled)"
+    )
 
     @field_validator("target_app")
     @classmethod
@@ -267,6 +306,9 @@ class PressKeyStepModel(BaseStepModel):
 
     action: Literal["press_key"] = "press_key"
     key: str = Field(..., description="Key or combo to press, e.g. 'Enter', 'Control+a'")
+    label: str | None = Field(
+        default=None, description="Optional HUD label text (defaults to key value)"
+    )
 
 
 class BrowserBackStepModel(BaseStepModel):
@@ -477,6 +519,8 @@ __all__ = [
     "ConfigModel",
     "OutputModel",
     "NarrationConfigModel",
+    "KeystrokeHudThemeModel",
+    "SfxConfigModel",
     "NarrationModel",
     "OverlayStyleModel",
     "OverlayModel",

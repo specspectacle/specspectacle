@@ -9,6 +9,11 @@ from pathlib import Path
 
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
+from specspectacle.executor.keystroke_hud import (
+    hide_keys,
+    inject_hud_overlay,
+    show_keys,
+)
 from specspectacle.executor.timeline import Timeline
 from specspectacle.parser.schema import SpecModel
 
@@ -180,6 +185,16 @@ class BrowserRunner:
         except Exception as e:
             logger.debug(f"Could not inject cursor tracker: {e}")
 
+    async def _inject_hud_overlay(self) -> None:
+        """Inject the keystroke HUD overlay if configured."""
+        if not self.spec.config.hud_theme or not self.page:
+            return
+        try:
+            await inject_hud_overlay(self.page, self.spec.config.hud_theme)
+            logger.debug("Keystroke HUD overlay injected")
+        except Exception as e:
+            logger.debug(f"Could not inject HUD overlay: {e}")
+
     async def launch(self) -> None:
         """
         Launch the browser with video recording enabled.
@@ -212,6 +227,10 @@ class BrowserRunner:
 
         # Create a new page
         self.page = await self.context.new_page()
+
+        # Start the timeline EXACTLY when the page (and video recording) is created
+        self.timeline.start()
+
         logger.info(
             f"Browser launched. Viewport: {self.spec.config.viewport.width}x{self.spec.config.viewport.height}"
         )
@@ -268,9 +287,6 @@ class BrowserRunner:
             narration_durations = await self._pre_generate_audio()
 
             await self.launch()
-
-            # Start timeline tracking
-            self.timeline.start()
 
             logger.info(f"Executing spec: {self.spec.name}")
             logger.info(f"Total flows: {len(self.spec.flows)}")
@@ -334,11 +350,40 @@ class BrowserRunner:
                     try:
                         # Get and execute the action handler
                         handler = get_action_handler(step_action)
-                        await handler(self.page, step)
+
+                        # Show HUD for press_key actions
+                        hud_active = False
+                        if step_action == "press_key" and self.spec.config.hud_theme and self.page:
+                            label = getattr(step, "label", None) or getattr(step, "key", "")
+                            await show_keys(self.page, [label])
+                            hud_active = True
+
+                        timestamps = await handler(self.page, step)
+
+                        # Hide HUD after a short display period
+                        if hud_active and self.page:
+                            await asyncio.sleep(0.3)
+                            await hide_keys(self.page)
+
+                        # Record sound events
+                        if (
+                            self.spec.config.sfx
+                            and self.timeline.started_at
+                            and step_action in ("click", "click_first_visible", "press_key", "type")
+                        ):
+                            sfx_type = "click" if step_action in ("click", "click_first_visible") else "key"
+                            if timestamps:
+                                for ts in timestamps:
+                                    elapsed_ms = (ts - self.timeline.started_at) * 1000
+                                    self.timeline.add_sound_event(sfx_type, elapsed_ms)
+                            else:
+                                elapsed_ms = (action_start_time - self.timeline.started_at) * 1000
+                                self.timeline.add_sound_event(sfx_type, elapsed_ms)
 
                         # Inject cursor tracker after navigation to make mouse visible
                         if step_action == "navigate":
                             await self._inject_cursor_tracker()
+                            await self._inject_hud_overlay()
                     except Exception as e:
                         success = False
                         error_message = str(e)
@@ -380,6 +425,12 @@ class BrowserRunner:
             logger.info("\n✓ Spec execution completed successfully")
             logger.info(f"  Total duration: {self.timeline.total_duration:.2f}s")
             logger.info(f"  Events recorded: {len(self.timeline.events)}")
+
+            # Wait 1.5 seconds before closing to allow Playwright's async WebM
+            # video recorder to flush all the final frames to disk
+            logger.info("  Waiting for video buffer to flush before closing...")
+            await asyncio.sleep(1.5)
+
             return await self.close()
 
         except Exception as e:

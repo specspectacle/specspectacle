@@ -12,6 +12,7 @@ Public interface (deep module — small surface, rich implementation):
 
 import asyncio
 import random
+import time
 
 from playwright.async_api import Page
 
@@ -40,7 +41,7 @@ async def type_text_naturally(
     page: Page,
     text: str,
     base_delay_ms: float = 100,
-) -> None:
+) -> list[float]:
     """
     Type each character in *text* one at a time with human-like timing.
 
@@ -58,7 +59,12 @@ async def type_text_naturally(
         base_delay_ms: Nominal inter-keystroke delay; actual delay is jittered
             around this value. Default: 100 ms (≈ relaxed typing pace).
     """
+    ts = []
     for char in text:
-        await page.keyboard.type(char)
+        await page.keyboard.down(char)
+        ts.append(time.time())
+        await page.keyboard.up(char)
+
         delay_s = human_delay(base_delay_ms) / 1000.0
         await asyncio.sleep(delay_s)
+    return ts

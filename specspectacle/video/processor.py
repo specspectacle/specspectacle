@@ -10,6 +10,10 @@ import os
 import tempfile
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from specspectacle.executor.timeline import SoundEvent
 
 from specspectacle.video.ffmpeg_utils import (
     FFmpegNotFoundError,
@@ -331,14 +335,12 @@ class VideoProcessor:
         video_codec = codec_mapping.get(codec, codec)
 
         # Build FFmpeg filter chain
-        scale_filter = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"
+        scale_filter = f"fps={fps},scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"
 
         # Combined processing command
         args = [
-            "-r",
-            str(fps),  # Output FPS
             "-vf",
-            scale_filter,  # Scale and pad
+            scale_filter,  # FPS, Scale and pad
             "-c:v",
             video_codec,  # Video codec
             "-crf",
@@ -480,6 +482,70 @@ class VideoProcessor:
                 e.returncode,
                 e.stderr,
             )
+
+    def apply_sfx(
+        self,
+        video_path: Path,
+        events: list["SoundEvent"],
+        click_sfx_path: str | None,
+        key_sfx_path: str | None,
+        output_path: Path | None = None,
+    ) -> Path:
+        """
+        Apply sound effects to video.
+
+        Args:
+            video_path: Path to the input video file.
+            events: List of sound events to apply.
+            click_sfx_path: Path to click sound effect.
+            key_sfx_path: Path to key sound effect.
+            output_path: Optional output path. If None, a temp file is created.
+
+        Returns:
+            Path to the output video with mixed sound effects.
+
+        Raises:
+            FFmpegExecutionError: If the merge fails.
+        """
+        from specspectacle.audio.sfx import build_sfx_mix_args
+
+        video_path = Path(video_path)
+        video_info = get_video_info(video_path)
+        has_audio = video_info.get("audio_codec") is not None
+
+        args_dict = build_sfx_mix_args(
+            video_path=str(video_path),
+            events=events,
+            click_sfx_path=click_sfx_path,
+            key_sfx_path=key_sfx_path,
+            has_audio=has_audio,
+        )
+        if not args_dict:
+            return video_path
+
+        if output_path is None:
+            output_path = self._create_temp_file(".mp4")
+        else:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        ffmpeg_cmd = []
+        for inp in args_dict["inputs"]:
+            ffmpeg_cmd.extend(["-i", inp])
+
+        ffmpeg_cmd.extend([
+            "-filter_complex", args_dict["filter_complex"],
+            "-map", "0:v:0",  # Video from the original video
+            "-map", "[final_audio]", # Audio from the mix
+            "-c:v", "copy",   # Copy video stream
+            "-c:a", "aac",    # Encode audio stream
+            "-b:a", "192k",
+        ])
+
+        logger.info(f"Mixing {len(events)} sound events into video...")
+        run_ffmpeg_command(ffmpeg_cmd, input_file=video_path, output_file=output_path)
+
+        return output_path
 
     def cleanup_temp_files(self):
         """Remove all temporary files created during processing."""

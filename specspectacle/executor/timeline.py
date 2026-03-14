@@ -9,6 +9,20 @@ import json
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Literal
+
+
+@dataclass
+class SoundEvent:
+    """A single sound event recorded during spec execution."""
+
+    type: Literal["click", "key"]
+    time_ms: float
+
+    def to_dict(self) -> dict:
+        """Serialize to a plain dict."""
+        return {"type": self.type, "time_ms": self.time_ms}
+
 
 
 @dataclass
@@ -64,6 +78,7 @@ class Timeline:
 
     spec_name: str
     events: list[TimelineEvent] = field(default_factory=list)
+    sound_events: list[SoundEvent] = field(default_factory=list)
     started_at: float | None = None
     completed_at: float | None = None
 
@@ -83,6 +98,16 @@ class Timeline:
             event: The timeline event to add
         """
         self.events.append(event)
+
+    def add_sound_event(self, sound_type: str, time_ms: float) -> None:
+        """
+        Record a sound event (click or key) with its timestamp.
+
+        Args:
+            type: "click" or "key"
+            time_ms: Milliseconds from timeline start
+        """
+        self.sound_events.append(SoundEvent(type=sound_type, time_ms=time_ms))
 
     def record_event(
         self,
@@ -169,6 +194,7 @@ class Timeline:
             "successful_events": len(self.successful_events),
             "failed_events": len(self.failed_events),
             "events": [event.to_dict() for event in self.events],
+            "sound_events": [se.to_dict() for se in self.sound_events],
         }
 
     def save(self, path: Path) -> None:
@@ -205,6 +231,9 @@ class Timeline:
         for event_data in data.get("events", []):
             event = TimelineEvent(**event_data)
             timeline.add_event(event)
+
+        for se_data in data.get("sound_events", []):
+            timeline.sound_events.append(SoundEvent(**se_data))
 
         return timeline
 

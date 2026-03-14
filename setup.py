@@ -3,15 +3,16 @@ SpecSpectacle - Turn specs into spectacles
 YAML user journeys to live product demos
 """
 
-from setuptools import setup, find_packages
 import os
+
+from setuptools import find_packages, setup
 
 
 # Read README for long description
 def read_long_description():
     readme_path = os.path.join(os.path.dirname(__file__), "README.md")
     if os.path.exists(readme_path):
-        with open(readme_path, "r", encoding="utf-8") as f:
+        with open(readme_path, encoding="utf-8") as f:
             return f.read()
     return __doc__
 
@@ -20,7 +21,7 @@ def read_long_description():
 def read_requirements(filename):
     req_path = os.path.join(os.path.dirname(__file__), filename)
     if os.path.exists(req_path):
-        with open(req_path, "r", encoding="utf-8") as f:
+        with open(req_path, encoding="utf-8") as f:
             return [
                 line.strip()
                 for line in f
