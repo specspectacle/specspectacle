@@ -61,9 +61,8 @@ async def type_text_naturally(
     """
     ts = []
     for char in text:
-        await page.keyboard.down(char)
+        await page.keyboard.type(char)
         ts.append(time.time())
-        await page.keyboard.up(char)
 
         delay_s = human_delay(base_delay_ms) / 1000.0
         await asyncio.sleep(delay_s)
