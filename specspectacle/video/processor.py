@@ -10,7 +10,7 @@ import os
 import tempfile
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from specspectacle.executor.timeline import SoundEvent
@@ -557,6 +557,144 @@ class VideoProcessor:
             except OSError as e:
                 logger.warning(f"Failed to remove temp file {temp_file}: {e}")
         self.temp_files.clear()
+
+    def apply_branding(
+        self,
+        input_path: Path,
+        timeline: Any,  # Timeline from executor.timeline
+        branding_config: Any,  # BrandingModel from parser.schema
+        output_filename: str,
+    ) -> Path:
+        """
+        Apply branding (logo + colors) to the processed video.
+
+        This method adds intro and outro branding segments with logo overlays
+        and colored backgrounds based on the branding configuration.
+
+        Args:
+            input_path: Path to the input video file
+            timeline: Timeline object containing branding segments
+            branding_config: BrandingModel with logo path and colors
+            output_filename: Name for the final output file
+
+        Returns:
+            Path to the video with branding applied
+        """
+        from specspectacle.video.overlay import (
+            BackgroundConfig,
+            LogoConfig,
+            OverlayConfig,
+            OverlayRenderer,
+        )
+
+        # Get the processed video path
+        processed_video = Path(input_path)
+        if not processed_video.exists():
+            raise FileNotFoundError(f"Processed video not found: {processed_video}")
+
+        # Final output path
+        output_path = self.output_dir / output_filename
+
+        # Get branding segments from timeline
+        intro_segment = timeline.get_intro_segment()
+        outro_segment = timeline.get_outro_segment()
+
+        if not intro_segment and not outro_segment:
+            logger.info("No branding segments found, returning processed video")
+            return processed_video
+
+        # Initialize overlay renderer
+        renderer = OverlayRenderer(processed_video, self.output_dir)
+
+        # 1. Add intro branding
+        if intro_segment:
+            # Add background
+            renderer.add_background(BackgroundConfig(
+                color=intro_segment.background_color,
+                start_time=intro_segment.start_time,
+                duration=intro_segment.duration,
+                opacity=1.0
+            ))
+
+            # Add title
+            if intro_segment.title:
+                renderer.add_overlay(OverlayConfig(
+                    text=intro_segment.title,
+                    position="center",
+                    start_time=intro_segment.start_time,
+                    duration=intro_segment.duration,
+                    font_size=48,
+                    font_color=intro_segment.text_color,
+                    background_color="#00000000",  # Transparent background for title
+                    font_family="Arial"
+                ))
+
+            # Add intro logo
+            if intro_segment.logo_path:
+                renderer.add_logo(LogoConfig(
+                    logo_path=intro_segment.logo_path,
+                    position=intro_segment.logo_position,
+                    start_time=intro_segment.start_time,
+                    duration=intro_segment.duration,
+                    scale=intro_segment.logo_scale,
+                ))
+                logger.info(f"Added intro branding at {intro_segment.start_time}s")
+
+        # 2. Add persistent logo watermark
+        # This makes the logo visible throughout the entire video execution
+        if branding_config and branding_config.logo:
+            # Watermark duration should cover the middle part (between intro and outro)
+            # or just the whole video if it's on top of everything.
+            # We add it for the whole duration, but it will be overlaid by intro/outro if needed.
+            watermark_logo = LogoConfig(
+                logo_path=branding_config.logo,
+                position=branding_config.logo_position,
+                start_time=0.0,
+                duration=timeline.total_duration,
+                scale=branding_config.logo_scale,
+            )
+            renderer.add_logo(watermark_logo)
+            logger.info(f"Added persistent logo watermark at {branding_config.logo_position}")
+
+        # 3. Add outro branding
+        if outro_segment:
+            # Add background
+            renderer.add_background(BackgroundConfig(
+                color=outro_segment.background_color,
+                start_time=outro_segment.start_time,
+                duration=outro_segment.duration,
+                opacity=1.0
+            ))
+
+            # Add title
+            if outro_segment.title:
+                renderer.add_overlay(OverlayConfig(
+                    text=outro_segment.title,
+                    position="center",
+                    start_time=outro_segment.start_time,
+                    duration=outro_segment.duration,
+                    font_size=48,
+                    font_color=outro_segment.text_color,
+                    background_color="#00000000",  # Transparent background for title
+                    font_family="Arial"
+                ))
+
+            # Add outro logo
+            if outro_segment.logo_path:
+                renderer.add_logo(LogoConfig(
+                    logo_path=outro_segment.logo_path,
+                    position=outro_segment.logo_position,
+                    start_time=outro_segment.start_time,
+                    duration=outro_segment.duration,
+                    scale=outro_segment.logo_scale,
+                ))
+                logger.info(f"Added outro branding at {outro_segment.start_time}s")
+
+        # Render branding
+        logger.info(f"Applying branding to video: {output_path}")
+        renderer.render(output_path)
+
+        return output_path
 
     def _create_temp_file(self, suffix: str) -> Path:
         """Create a temporary file and track it for cleanup."""

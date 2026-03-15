@@ -62,6 +62,40 @@ class TimelineEvent:
 
 
 @dataclass
+class BrandingSegment:
+    """
+    Represents a branding segment (intro/outro) in the timeline.
+
+    Attributes:
+        segment_type: Type of branding segment ('intro' or 'outro')
+        start_time: Video-relative start time in seconds
+        duration: Duration in seconds
+        logo_path: Path to logo image (optional)
+        logo_position: Position of logo ('top-left', 'top-right', 'bottom-left', 'bottom-right')
+        logo_scale: Scale factor for logo (0.01 to 1.0)
+        primary_color: Primary brand color (hex format)
+        background_color: Background color (hex format)
+        text_color: Text color (hex format)
+        title: Title text for the segment
+    """
+
+    segment_type: Literal["intro", "outro"]
+    start_time: float
+    duration: float
+    logo_path: str | None = None
+    logo_position: str = "top-left"
+    logo_scale: float = 0.15
+    primary_color: str = "#3B82F6"
+    background_color: str = "#000000"
+    text_color: str = "#FFFFFF"
+    title: str = ""
+
+    def to_dict(self) -> dict:
+        """Convert segment to dictionary for JSON serialization."""
+        return asdict(self)
+
+
+@dataclass
 class Timeline:
     """
     Tracks the execution timeline of an entire spec.
@@ -79,6 +113,7 @@ class Timeline:
     spec_name: str
     events: list[TimelineEvent] = field(default_factory=list)
     sound_events: list[SoundEvent] = field(default_factory=list)
+    branding_segments: list[BrandingSegment] = field(default_factory=list)
     started_at: float | None = None
     completed_at: float | None = None
 
@@ -156,6 +191,39 @@ class Timeline:
         self.add_event(event)
         return event
 
+    def add_branding_segment(self, segment: BrandingSegment) -> None:
+        """
+        Add a branding segment to the timeline.
+
+        Args:
+            segment: BrandingSegment to add
+        """
+        self.branding_segments.append(segment)
+
+    def get_intro_segment(self) -> BrandingSegment | None:
+        """
+        Get the intro branding segment if it exists.
+
+        Returns:
+            Intro BrandingSegment or None
+        """
+        for segment in self.branding_segments:
+            if segment.segment_type == "intro":
+                return segment
+        return None
+
+    def get_outro_segment(self) -> BrandingSegment | None:
+        """
+        Get the outro branding segment if it exists.
+
+        Returns:
+            Outro BrandingSegment or None
+        """
+        for segment in self.branding_segments:
+            if segment.segment_type == "outro":
+                return segment
+        return None
+
     @property
     def total_duration(self) -> float:
         """
@@ -195,6 +263,7 @@ class Timeline:
             "failed_events": len(self.failed_events),
             "events": [event.to_dict() for event in self.events],
             "sound_events": [se.to_dict() for se in self.sound_events],
+            "branding_segments": [bs.to_dict() for bs in self.branding_segments],
         }
 
     def save(self, path: Path) -> None:
@@ -234,6 +303,13 @@ class Timeline:
 
         for se_data in data.get("sound_events", []):
             timeline.sound_events.append(SoundEvent(**se_data))
+
+        # Restore branding segments
+        for bs_data in data.get("branding_segments", []):
+            from specspectacle.executor.timeline import BrandingSegment
+
+            bs = BrandingSegment(**bs_data)
+            timeline.add_branding_segment(bs)
 
         return timeline
 

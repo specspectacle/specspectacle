@@ -6,6 +6,7 @@ Complete reference for writing SpecSpectacle YAML specification files.
 
 - [Spec Structure Overview](#spec-structure-overview)
 - [Config Section](#config-section)
+  - [Branding Configuration](#branding-configuration)
 - [Output Section](#output-section)
 - [Narration Section](#narration-section)
 - [Flows and Steps](#flows-and-steps)
@@ -75,11 +76,51 @@ config:
   timeout: 10000
   headless: false
   slow_motion: 100
-```
-
----
-
-## Output Section
+    branding:                          # Optional: Custom branding configuration
+      logo: "/path/to/logo.png"        # Optional: Path to logo image (PNG)
+      colors:                          # Optional: Color scheme
+        primary: "#3B82F6"             # Default: #3B82F6 (primary brand color)
+        background: "#000000"          # Default: #000000 (background color)
+        text: "#FFFFFF"                # Default: #FFFFFF (text color)
+  ```
+  
+  ### Branding Configuration
+  
+  The `branding` section allows you to add custom branding elements to your demo video, including a logo and color scheme. The branding is applied to intro and outro segments.
+  
+  #### Logo
+  
+  - **Type:** String (file path)
+  - **Required:** No
+  - **Description:** Path to a PNG logo image file
+  - **Usage:** The logo will be placed in the intro and outro segments at the configured position
+  
+  #### Colors
+  
+  The `colors` object defines the color scheme for branding elements:
+  
+  - **`primary`** (string, hex): Primary brand color (default: `#3B82F6`)
+  - **`background`** (string, hex): Background color for overlays (default: `#000000`)
+  - **`text`** (string, hex): Text color for overlays (default: `#FFFFFF`)
+  
+  All colors must be in valid hex format: `#RGB`, `#RGBA`, `#RRGGBB`, or `#RRGGBBAA`.
+  
+  ### Example with Branding
+  
+  ```yaml
+  config:
+    target_app: "https://www.saucedemo.com"
+    branding:
+      logo: "./assets/company-logo.png"
+      colors:
+        primary: "#FF5722"
+        background: "#1A1A1A"
+        text: "#FFFFFF"
+  ```
+  
+  ---
+  
+  ## Output Section
 
 Controls video output settings.
 

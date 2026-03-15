@@ -55,6 +55,69 @@ class SfxConfigModel(BaseModel):
         return v
 
 
+class BrandingColorsModel(BaseModel):
+    """Color palette for branding."""
+
+    primary: str = Field(
+        default="#3B82F6",
+        description="Primary brand color (hex format, e.g., #3B82F6)",
+    )
+    background: str = Field(
+        default="#000000",
+        description="Background color for overlays (hex format)",
+    )
+    text: str = Field(
+        default="#FFFFFF",
+        description="Text color for overlays (hex format)",
+    )
+
+    @field_validator("primary", "background", "text")
+    @classmethod
+    def validate_color(cls, v: str) -> str:
+        if not is_valid_hex_color(v):
+            raise ValueError(f"Invalid hex color: {v}")
+        return v
+
+
+class BrandingModel(BaseModel):
+    """Custom branding configuration for the demo video."""
+
+    logo: str | None = Field(
+        default=None,
+        description="Path to logo image file (PNG). Will be placed in intro/outro overlays.",
+    )
+    logo_position: Literal["top-left", "top-right", "bottom-left", "bottom-right"] = Field(
+        default="top-right",
+        description="Position of the logo in intro/outro segments",
+    )
+    logo_scale: float = Field(
+        default=0.15,
+        ge=0.01,
+        le=1.0,
+        description="Logo size as a fraction of video width (0.01 to 1.0)",
+    )
+    intro_duration: float = Field(
+        default=3.0,
+        ge=0.5,
+        le=30.0,
+        description="Duration of intro branding segment in seconds",
+    )
+    outro_duration: float = Field(
+        default=3.0,
+        ge=0.5,
+        le=30.0,
+        description="Duration of outro branding segment in seconds",
+    )
+    colors: BrandingColorsModel = Field(
+        default_factory=BrandingColorsModel,
+        description="Color scheme for branding elements",
+    )
+    apply_to_overlays: bool = Field(
+        default=True,
+        description="Apply branding colors to all overlays by default",
+    )
+
+
 class ConfigModel(BaseModel):
     """Global configuration for the demo."""
 
@@ -68,6 +131,9 @@ class ConfigModel(BaseModel):
     )
     sfx: SfxConfigModel | None = Field(
         default=None, description="Sound effects config (None = disabled)"
+    )
+    branding: BrandingModel | None = Field(
+        default=None, description="Custom branding configuration (logo + colors)"
     )
 
     @field_validator("target_app")
@@ -98,7 +164,7 @@ class NarrationConfigModel(BaseModel):
     language: str = Field(default="en-US")
 
 
-# ==================== Narration \u0026 Overlay Models ====================
+# ==================== Narration & Overlay Models ====================
 
 
 class NarrationModel(BaseModel):
@@ -490,7 +556,7 @@ StepModel = Annotated[
 ]
 
 
-# ==================== Flow \u0026 Spec Models ====================
+# ==================== Flow & Spec Models ====================
 
 
 class FlowModel(BaseModel):

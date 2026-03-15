@@ -306,7 +306,7 @@ def run(
 
                     # 3. Text Overlays
                     if not no_overlays:
-                        overlays = OverlayTimestampCalculator.calculate_overlays(spec, timeline)
+                        overlays = OverlayTimestampCalculator.calculate_overlays(spec, timeline, spec.config.branding)
                         if overlays:
                             console.print(f"  [bold]Rendering {len(overlays)} Overlays...[/bold]")
                             try:
@@ -328,13 +328,37 @@ def run(
                                 )
                                 logger.exception("Overlay rendering error")
 
-                    # Final cleanup and rename to target filename
-                    target_path = out_path / spec.output.filename
-                    if target_path.exists():
-                        target_path.unlink()
+                    # 3.5 Branding (Logo + Colors)
+                    branding_applied = False
+                    if spec.config.branding:
+                        console.print("  [bold]Applying Branding...[/bold]")
+                        try:
+                            # Use current_video_path as input to apply_branding
+                            # apply_branding will write to spec.output.filename
+                            current_video_path = processor.apply_branding(
+                                current_video_path,
+                                timeline,
+                                spec.config.branding,
+                                spec.output.filename,
+                            )
+                            branding_applied = True
 
-                    current_video_path.rename(target_path)
-                    final_video_path = target_path
+                        except Exception as e:
+                            console.print(
+                                f"    [yellow]⚠ Branding application failed:[/yellow] {e}"
+                            )
+                            logger.exception("Branding application error")
+
+                    # Final cleanup and rename to target filename (skip if branding was applied)
+                    if not branding_applied:
+                        target_path = out_path / spec.output.filename
+                        if target_path.exists():
+                            target_path.unlink()
+
+                        current_video_path.rename(target_path)
+                        final_video_path = target_path
+                    else:
+                        final_video_path = current_video_path
 
                     console.print("[bold green]✓ Video Processing Complete![/bold green]")
                     console.print(f"  [bold]Final Video:[/bold] {final_video_path}")

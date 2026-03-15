@@ -55,6 +55,47 @@ class BrowserRunner:
         # Initialize timeline for tracking
         self.timeline = Timeline(spec_name=spec.name)
 
+        # Create branding segments if branding config is provided
+        if spec.config.branding:
+            from specspectacle.executor.timeline import BrandingSegment
+
+            branding = spec.config.branding
+            colors = branding.colors
+
+            # Intro branding segment (at the start of the video)
+            intro_segment = BrandingSegment(
+                segment_type="intro",
+                start_time=0.0,
+                duration=branding.intro_duration,
+                logo_path=branding.logo,
+                logo_position=branding.logo_position,
+                logo_scale=branding.logo_scale,
+                primary_color=colors.primary,
+                background_color=colors.background,
+                text_color=colors.text,
+                title=spec.name,
+            )
+            self.timeline.add_branding_segment(intro_segment)
+
+            # Outro branding segment (at the end of the video)
+            # Calculate outro start time: total duration - outro duration
+            outro_start_time = max(0.0, self.timeline.total_duration - branding.outro_duration)
+            outro_segment = BrandingSegment(
+                segment_type="outro",
+                start_time=outro_start_time,
+                duration=branding.outro_duration,
+                logo_path=branding.logo,
+                logo_position=branding.logo_position,
+                logo_scale=branding.logo_scale,
+                primary_color=colors.primary,
+                background_color=colors.background,
+                text_color=colors.text,
+                title="End",
+            )
+            self.timeline.add_branding_segment(outro_segment)
+
+            logger.info(f"Branding configured: logo={branding.logo}, colors={colors}")
+
         self.playwright = None
         self.browser: Browser | None = None
         self.context: BrowserContext | None = None
@@ -288,6 +329,13 @@ class BrowserRunner:
 
             await self.launch()
 
+            # Add delay for intro branding if configured
+            if self.spec.config.branding:
+                intro_duration = self.spec.config.branding.intro_duration
+                if intro_duration > 0:
+                    logger.info(f"Adding delay for intro branding: {intro_duration}s")
+                    await asyncio.sleep(intro_duration)
+
             logger.info(f"Executing spec: {self.spec.name}")
             logger.info(f"Total flows: {len(self.spec.flows)}")
 
@@ -425,6 +473,20 @@ class BrowserRunner:
             logger.info("\n✓ Spec execution completed successfully")
             logger.info(f"  Total duration: {self.timeline.total_duration:.2f}s")
             logger.info(f"  Events recorded: {len(self.timeline.events)}")
+
+            # Update outro segment start time now that we know the total duration
+            if self.spec.config.branding:
+
+                branding = self.spec.config.branding
+                total_duration = self.timeline.total_duration
+                outro_start_time = max(0.0, total_duration - branding.outro_duration)
+
+                # Find and update the outro segment
+                for segment in self.timeline.branding_segments:
+                    if segment.segment_type == "outro":
+                        segment.start_time = outro_start_time
+                        logger.info(f"Updated outro segment start time to {outro_start_time:.2f}s")
+                        break
 
             # Wait 1.5 seconds before closing to allow Playwright's async WebM
             # video recorder to flush all the final frames to disk

@@ -1,9 +1,8 @@
 """
 Keystroke HUD overlay — injects and controls a key-label overlay in the browser.
 
-Modeled after webreel's overlays.ts: a fixed-position div (#__demo-keys) is
-injected into the page via page.evaluate(). show_keys / hide_keys toggle its
-content and visibility.
+A fixed-position div (#__demo-keys) is injected into the page via page.evaluate().
+show_keys / hide_keys toggle its content and visibility.
 """
 
 from __future__ import annotations

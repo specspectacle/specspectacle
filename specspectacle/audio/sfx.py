@@ -2,7 +2,6 @@
 Sound effects module — resolves built-in/custom audio assets and builds
 ffmpeg filter_complex arguments for mixing SFX into video.
 
-Adapted from webreel's media.ts.
 """
 
 from __future__ import annotations
@@ -50,7 +49,6 @@ def build_sfx_mix_args(
     Returns a dict with 'inputs' (list of -i paths) and 'filter_complex' string,
     or None if there are no events to mix.
 
-    The approach mirrors webreel's buildAudioMixArgs:
     - Each SFX event becomes a separate audio stream
     - Each stream is adelayed to its correct timestamp
     - Volume/pitch are slightly randomized for natural feel

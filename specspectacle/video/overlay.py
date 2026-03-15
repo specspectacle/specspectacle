@@ -92,6 +92,8 @@ class OverlayConfig:
         cls,
         overlay_model: Any,  # OverlayModel from parser.schema
         start_time: float,
+        branding_colors: dict[str, str] | None = None,
+        apply_branding: bool = True,
     ) -> "OverlayConfig":
         """
         Create OverlayConfig from a parsed OverlayModel.
@@ -99,21 +101,73 @@ class OverlayConfig:
         Args:
             overlay_model: OverlayModel from the schema
             start_time: Calculated start time for this overlay
+            branding_colors: Optional dict with 'background' and 'text' keys for branding colors
+            apply_branding: Whether to apply branding colors when style is not specified
 
         Returns:
             OverlayConfig with extracted values
         """
         style = overlay_model.style if hasattr(overlay_model, "style") else None
 
+        # Default style values (from OverlayStyleModel)
+        DEFAULT_BACKGROUND = "#000000AA"
+        DEFAULT_TEXT = "#FFFFFF"
+        DEFAULT_FONT_SIZE = 22
+        DEFAULT_FONT_FAMILY = "Arial"
+
+        # Determine colors - use style if explicitly specified, otherwise use branding colors if available
+        if style:
+            # Check if style has default values (meaning it wasn't explicitly set)
+            is_default_style = (
+                style.background_color == DEFAULT_BACKGROUND and
+                style.text_color == DEFAULT_TEXT and
+                style.font_size == DEFAULT_FONT_SIZE and
+                style.font_family == DEFAULT_FONT_FAMILY
+            )
+
+            if is_default_style:
+                # Style has defaults, check if we should apply branding
+                if branding_colors and apply_branding:
+                    font_color = branding_colors.get("text", DEFAULT_TEXT)
+                    bg_color = branding_colors.get("background", "#000000")
+                    background_color = bg_color + "CC"  # Add 80% opacity
+                    font_size = DEFAULT_FONT_SIZE
+                    font_family = DEFAULT_FONT_FAMILY
+                else:
+                    # No branding, use defaults
+                    font_color = DEFAULT_TEXT
+                    background_color = DEFAULT_BACKGROUND
+                    font_size = DEFAULT_FONT_SIZE
+                    font_family = DEFAULT_FONT_FAMILY
+            else:
+                # Style explicitly specified, use those colors
+                font_color = style.text_color
+                background_color = style.background_color
+                font_size = style.font_size
+                font_family = style.font_family
+        else:
+            # No style at all, use branding or defaults
+            if branding_colors and apply_branding:
+                font_color = branding_colors.get("text", DEFAULT_TEXT)
+                bg_color = branding_colors.get("background", "#000000")
+                background_color = bg_color + "CC"  # Add 80% opacity
+                font_size = DEFAULT_FONT_SIZE
+                font_family = DEFAULT_FONT_FAMILY
+            else:
+                font_color = DEFAULT_TEXT
+                background_color = DEFAULT_BACKGROUND
+                font_size = DEFAULT_FONT_SIZE
+                font_family = DEFAULT_FONT_FAMILY
+
         return cls(
             text=overlay_model.text,
             position=overlay_model.position,
             start_time=start_time,
             duration=overlay_model.duration,
-            font_size=style.font_size if style else 22,
-            font_color=style.text_color if style else "#FFFFFF",
-            background_color=style.background_color if style else "#000000AA",
-            font_family=style.font_family if style else "Arial",
+            font_size=font_size,
+            font_color=font_color,
+            background_color=background_color,
+            font_family=font_family,
         )
 
     def to_dict(self) -> dict:
@@ -130,6 +184,59 @@ class OverlayConfig:
         }
 
 
+# Logo position mapping: name -> (x_expression, y_expression)
+# Expressions use FFmpeg syntax with main_w=video_width, main_h=video_height, overlay_w=logo_width, overlay_h=logo_height
+LOGO_POSITION_MAP = {
+    "top-left": ("10", "10"),
+    "top-right": ("main_w-overlay_w-10", "10"),
+    "bottom-left": ("10", "main_h-overlay_h-10"),
+    "bottom-right": ("main_w-overlay_w-10", "main_h-overlay_h-10"),
+}
+
+
+@dataclass
+class LogoConfig:
+    """
+    Configuration for a logo overlay.
+
+    Attributes:
+        logo_path: Path to the logo image file
+        position: Position on screen (top-left, top-right, bottom-left, bottom-right)
+        start_time: When to start showing the logo (seconds)
+        duration: How long to show the logo (seconds)
+        scale: Scale factor for the logo (e.g., 0.1 for 10% of video width)
+    """
+
+    logo_path: str
+    position: str = "top-left"
+    start_time: float = 0.0
+    duration: float = 2.0
+    scale: float = 0.15
+
+    def __post_init__(self):
+        """Validate logo configuration."""
+        # Validate position
+        if self.position not in LOGO_POSITION_MAP:
+            valid_positions = ", ".join(LOGO_POSITION_MAP.keys())
+            raise ValueError(
+                f"Invalid position '{self.position}'. Valid positions: {valid_positions}"
+            )
+
+        # Validate scale
+        if not 0.01 <= self.scale <= 1.0:
+            raise ValueError(f"Scale must be between 0.01 and 1.0, got {self.scale}")
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "logo_path": self.logo_path,
+            "position": self.position,
+            "start_time": self.start_time,
+            "duration": self.duration,
+            "scale": self.scale,
+        }
+
+
 class OverlayTimestampCalculator:
     """
     Calculates overlay timestamps from the execution timeline.
@@ -140,6 +247,7 @@ class OverlayTimestampCalculator:
         cls,
         spec: Any,  # SpecModel from parser.schema
         execution_timeline: Timeline,
+        branding_config: Any | None = None,  # BrandingModel from parser.schema
     ) -> list[OverlayConfig]:
         """
         Extract and calculate timings for all overlays in a spec.
@@ -147,11 +255,22 @@ class OverlayTimestampCalculator:
         Args:
             spec: Parsed SpecModel with flows and steps
             execution_timeline: Timeline from browser execution
+            branding_config: Optional BrandingModel for applying brand colors
 
         Returns:
             List of OverlayConfig with calculated start times (video-relative)
         """
         overlays = []
+
+        # Get branding colors if available
+        branding_colors = None
+        apply_branding = True
+        if branding_config and hasattr(branding_config, "colors"):
+            branding_colors = {
+                "background": branding_config.colors.background,
+                "text": branding_config.colors.text,
+            }
+            apply_branding = getattr(branding_config, "apply_to_overlays", True)
 
         # Get timeline start time for converting to video-relative timestamps
         # Timeline events store absolute Unix timestamps, but overlays need
@@ -180,7 +299,9 @@ class OverlayTimestampCalculator:
                         timeline_start=timeline_start,
                     )
 
-                    config = OverlayConfig.from_overlay_model(overlay_model, start_time)
+                    config = OverlayConfig.from_overlay_model(
+                        overlay_model, start_time, branding_colors, apply_branding
+                    )
                     overlays.append(config)
 
         return overlays
@@ -225,9 +346,36 @@ class OverlayTimestampCalculator:
             return event_end + offset
 
 
+@dataclass
+class BackgroundConfig:
+    """
+    Configuration for a full-screen background color overlay.
+
+    Attributes:
+        color: Background color (hex format, e.g., "#000000")
+        start_time: When to start showing the background (seconds)
+        duration: How long to show the background (seconds)
+        opacity: Opacity from 0.0 to 1.0
+    """
+
+    color: str
+    start_time: float
+    duration: float
+    opacity: float = 1.0
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "color": self.color,
+            "start_time": self.start_time,
+            "duration": self.duration,
+            "opacity": self.opacity,
+        }
+
+
 class OverlayRenderer:
     """
-    Renders text overlays on video using FFmpeg drawtext filter.
+    Renders text overlays, logos, and backgrounds on video using FFmpeg filters.
 
     This class builds FFmpeg filter chains for multiple overlays
     and applies them to a video file.
@@ -254,6 +402,8 @@ class OverlayRenderer:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.overlays: list[OverlayConfig] = []
+        self.logos: list[LogoConfig] = []
+        self.backgrounds: list[BackgroundConfig] = []
         self._video_info = get_video_info(self.video_path)
 
     def add_overlay(self, config: OverlayConfig) -> None:
@@ -274,6 +424,33 @@ class OverlayRenderer:
         """
         self.overlays.extend(configs)
 
+    def add_logo(self, config: LogoConfig) -> None:
+        """
+        Add a logo to be rendered.
+
+        Args:
+            config: LogoConfig defining the logo overlay
+        """
+        self.logos.append(config)
+
+    def add_logos(self, configs: list[LogoConfig]) -> None:
+        """
+        Add multiple logos to be rendered.
+
+        Args:
+            configs: List of LogoConfig objects
+        """
+        self.logos.extend(configs)
+
+    def add_background(self, config: BackgroundConfig) -> None:
+        """
+        Add a full-screen background color overlay.
+
+        Args:
+            config: BackgroundConfig defining the background
+        """
+        self.backgrounds.append(config)
+
     def render(self, output_path: Path) -> Path:
         """
         Render all overlays onto the video.
@@ -289,40 +466,47 @@ class OverlayRenderer:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if not self.overlays:
-            logger.info("No overlays to render, copying video")
+        if not self.overlays and not self.logos and not self.backgrounds:
+            logger.info("No overlays, logos, or backgrounds to render, copying video")
             # Just copy the video if no overlays
             import shutil
 
             shutil.copy(self.video_path, output_path)
             return output_path
 
-        # Sort overlays by start time
+        # Sort all items by start time
         sorted_overlays = sorted(self.overlays, key=lambda o: o.start_time)
+        sorted_logos = sorted(self.logos, key=lambda logo: logo.start_time)
+        sorted_backgrounds = sorted(self.backgrounds, key=lambda bg: bg.start_time)
 
         # Build filter complex
-        filter_complex = self._build_filter_complex(sorted_overlays)
+        filter_complex = self._build_filter_complex(
+            sorted_overlays, sorted_logos, sorted_backgrounds
+        )
 
-        logger.info(f"Rendering {len(self.overlays)} overlay(s) on video")
+        total_items = len(self.overlays) + len(self.logos) + len(self.backgrounds)
+        logger.info(f"Rendering {total_items} item(s) on video")
         logger.debug(f"Filter complex: {filter_complex}")
 
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(self.video_path),
-            "-vf",
-            filter_complex,
-            "-c:v",
-            "libx264",
-            "-preset",
-            "medium",
-            "-crf",
-            "23",
-            "-c:a",
-            "copy",
-            str(output_path),
-        ]
+        # Build FFmpeg command with -filter_complex for complex filter chains
+        cmd = ["ffmpeg", "-y", "-i", str(self.video_path)]
+
+        # Add logo inputs if any logos exist
+        for logo in sorted_logos:
+            logo_path = Path(logo.logo_path)
+            if not logo_path.exists():
+                raise FileNotFoundError(f"Logo not found: {logo_path}")
+            cmd.extend(["-i", str(logo_path)])
+
+        # Use -filter_complex instead of -vf for complex filter chains
+        cmd.extend([
+            "-filter_complex", filter_complex,
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "23",
+            "-c:a", "copy",
+            str(output_path)
+        ])
 
         try:
             subprocess.run(
@@ -343,29 +527,104 @@ class OverlayRenderer:
                 e.stderr,
             )
 
-    def _build_filter_complex(self, overlays: list[OverlayConfig]) -> str:
+    def _build_filter_complex(
+        self,
+        overlays: list[OverlayConfig],
+        logos: list[LogoConfig],
+        backgrounds: list[BackgroundConfig],
+    ) -> str:
         """
-        Build FFmpeg filter complex string for all overlays.
+        Build FFmpeg filter complex string for all backgrounds, logos, and text overlays.
 
-        Each overlay uses the drawtext filter with:
-        - enable='between(t,start,end)' for timing
-        - Position expressions based on position name
-        - Box background with alpha transparency
+        The order of application is:
+        1. Full-screen backgrounds (drawbox)
+        2. Logos (overlay)
+        3. Text overlays (drawtext)
 
         Args:
             overlays: List of OverlayConfig sorted by start time
+            logos: List of LogoConfig sorted by start time
+            backgrounds: List of BackgroundConfig sorted by start time
 
         Returns:
             FFmpeg filter complex string
         """
-        filters = []
+        filter_parts = []
 
+        # 1. Scale all logos first (pre-processing logo inputs)
+        for idx, logo in enumerate(logos):
+            logo_input_idx = idx + 1  # Logo inputs start at [1:v], [2:v], etc.
+            filter_parts.append(
+                f"[{logo_input_idx}:v]scale=iw*{logo.scale}:-1[logo{idx}]"
+            )
+
+        # Start chaining from the base video [0:v]
+        current_v = "[0:v]"
+        chain_idx = 0
+
+        # 2. Add backgrounds
+        for bg in backgrounds:
+            bg_color, _ = self._hex_to_ffmpeg_color_with_alpha(bg.color)
+            enable_expr = f"between(t,{bg.start_time:.2f},{bg.start_time + bg.duration:.2f})"
+
+            # Use drawbox to fill the entire screen
+            # color=COLOR@OPACITY
+            next_v = f"[v_bg{chain_idx}]"
+            filter_parts.append(
+                f"{current_v}drawbox=x=0:y=0:w=iw:h=ih:color={bg_color}@{bg.opacity}:t=fill:enable='{enable_expr}'{next_v}"
+            )
+            current_v = next_v
+            chain_idx += 1
+
+        # 3. Add logos
+        for idx, logo in enumerate(logos):
+            x_expr, y_expr = LOGO_POSITION_MAP[logo.position]
+            enable_expr = f"between(t,{logo.start_time:.2f},{logo.start_time + logo.duration:.2f})"
+
+            next_v = f"[v_logo{chain_idx}]"
+            filter_parts.append(
+                f"{current_v}[logo{idx}]overlay={x_expr}:{y_expr}:enable='{enable_expr}'{next_v}"
+            )
+            current_v = next_v
+            chain_idx += 1
+
+        # 4. Add text overlays
         for overlay in overlays:
-            filter_str = self._build_drawtext_filter(overlay)
-            filters.append(filter_str)
+            drawtext_filter = self._build_drawtext_filter(overlay)
 
-        # Chain filters together
-        return ",".join(filters)
+            next_v = f"[v_text{chain_idx}]"
+            filter_parts.append(
+                f"{current_v}{drawtext_filter}{next_v}"
+            )
+            current_v = next_v
+            chain_idx += 1
+
+        # Final output label is not needed for the very last filter if it's the only chain
+        # but we use it for clarity and strip it from the very last part to let FFmpeg auto-map
+        if filter_parts:
+            # Strip the last output label so FFmpeg uses it as the final video stream
+            last_part = filter_parts[-1]
+            if last_part.endswith(f"[v_text{chain_idx-1}]"):
+                filter_parts[-1] = last_part.replace(f"[v_text{chain_idx-1}]", "")
+            elif last_part.endswith(f"[v_logo{chain_idx-1}]"):
+                filter_parts[-1] = last_part.replace(f"[v_logo{chain_idx-1}]", "")
+            elif last_part.endswith(f"[v_bg{chain_idx-1}]"):
+                filter_parts[-1] = last_part.replace(f"[v_bg{chain_idx-1}]", "")
+
+        # Join with semicolons for independent chains (logo scaling vs video processing)
+        # Actually, logo scaling is independent, but video processing is one long chain.
+
+        # Separate logo scaling from the main video chain
+        logo_scaling = [p for p in filter_parts if p.startswith("[") and "scale=" in p]
+        video_chain = [p for p in filter_parts if p not in logo_scaling]
+
+        final_parts = []
+        if logo_scaling:
+            final_parts.append(";".join(logo_scaling))
+        if video_chain:
+            final_parts.append(",".join(video_chain))
+
+        return ";".join(final_parts) if logo_scaling else ",".join(video_chain)
 
     def _build_drawtext_filter(self, config: OverlayConfig) -> str:
         """
@@ -415,7 +674,35 @@ class OverlayRenderer:
             "box=1",
             f"boxcolor={bg_color}@{bg_alpha}",
             "boxborderw=10",
-            f"enable='between(t,{config.start_time:.2f},{end_time:.2f})'",
+            f"enable='between(t,{config.start_time:.6f},{end_time:.6f})'",
+        ]
+
+        return ":".join(filter_parts)
+
+    def _build_overlay_filter(self, config: LogoConfig, input_idx: int = 0) -> str:
+        """
+        Build a single overlay filter for a logo.
+
+        Args:
+            config: LogoConfig for this logo
+            input_idx: Input index for this logo (0 for first logo, 1 for second, etc.)
+
+        Returns:
+            FFmpeg overlay filter string
+        """
+        # Get position expressions
+        x_expr, y_expr = LOGO_POSITION_MAP[config.position]
+
+        # Calculate end time
+        end_time = config.start_time + config.duration
+
+        # Build overlay filter with scale
+        # First scale the logo, then overlay it
+        # Use [N:v] where N is the input index (0-based, so logo 0 uses [1:v])
+        logo_input_idx = input_idx + 1
+        filter_parts = [
+            f"[{logo_input_idx}:v]scale=iw*{config.scale}:-1[logo{input_idx}]",
+            f"[video][logo{input_idx}]overlay={x_expr}:{y_expr}:enable='between(t,{config.start_time:.2f},{end_time:.2f})'",
         ]
 
         return ":".join(filter_parts)

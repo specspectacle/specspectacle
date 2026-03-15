@@ -1,0 +1,105 @@
+name: "Branding Demo"
+version: "0.1.0"
+description: "Demonstrates custom branding with logo and color scheme"
+
+config:
+  target_app: "https://www.saucedemo.com"
+  viewport: {width: 1280, height: 720}
+  timeout: 5000
+  headless: false
+  
+  # Branding configuration
+  branding:
+    logo: "./assets/1685073970666.jpeg"  # Path to your logo image (PNG)
+    logo_position: "top-right"           # Position for intro/outro logo
+    logo_scale: 0.15                     # Logo size (0.01 to 1.0, where 1.0 = full video width)
+    intro_duration: 3.0                  # Duration of intro branding segment
+    outro_duration: 3.0                  # Duration of outro branding segment
+    colors:
+      primary: "#FF5722"                 # Primary brand color
+      background: "#1A1A1A"              # Background color for overlays
+      text: "#FFFFFF"                    # Text color for overlays
+    
+    # Apply branding colors to all overlays by default
+    apply_to_overlays: true
+
+output:
+  filename: "branding_demo.mp4"
+  fps: 30
+
+narration:
+  enabled: true
+  voice: "en-US-Neural2-F"
+
+flows:
+  - name: "Login Flow with Branding"
+    description: "Login flow that will have branding applied to intro and outro"
+    steps:
+      - action: navigate
+        url: "https://www.saucedemo.com"
+        overlay:
+          text: "Sauce Demo Store"
+          position: "top"
+        narration:
+          text: "Welcome to the Sauce Demo store. Let's explore the product catalog."
+
+      - action: wait_for_selector
+        selector: "#user-name"
+        overlay:
+          text: "Login Page"
+          position: "top-left"
+
+      - action: type
+        selector: "#user-name"
+        text: "standard_user"
+        delay: 100
+        narration:
+          text: "Entering username."
+
+      - action: type
+        selector: "#password"
+        text: "secret_sauce"
+        delay: 100
+        narration:
+          text: "Entering password."
+
+      - action: click
+        selector: "#login-button"
+        overlay:
+          text: "Logging in..."
+          position: "center"
+          style:
+            background_color: "#FF5722EE"
+        narration:
+          text: "Clicking login to proceed."
+
+      - action: wait_for_selector
+        selector: ".inventory_list"
+        overlay:
+          text: "Successfully logged in!"
+          position: "bottom"
+          duration: 2.0
+          style:
+            background_color: "#FF5722DD"
+            font_size: 28
+        narration:
+          text: "Successfully logged in to the inventory dashboard."
+
+      - action: click
+        selector: "[data-test='add-to-cart-sauce-labs-backpack']"
+        overlay:
+          text: "Added to cart"
+          position: "top-right"
+        narration:
+          text: "Adding the backpack to cart."
+
+      - action: wait
+        duration: 1.0
+
+      - action: click
+        selector: ".shopping_cart_link"
+        narration:
+          text: "Viewing the shopping cart."
+
+      - action: wait
+        duration: 1.0
