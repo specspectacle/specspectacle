@@ -11,8 +11,8 @@ config:
   # Branding configuration
   branding:
     logo: "./assets/1685073970666.jpeg"  # Path to your logo image (PNG)
-    logo_position: "top-right"           # Position for intro/outro logo
-    logo_scale: 0.15                     # Logo size (0.01 to 1.0, where 1.0 = full video width)
+    logo_position: "bottom-right"           # Position for intro/outro logo
+    logo_scale: 0.05                     # Logo size (0.01 to 1.0, where 1.0 = full video width)
     intro_duration: 3.0                  # Duration of intro branding segment
     outro_duration: 3.0                  # Duration of outro branding segment
     colors:

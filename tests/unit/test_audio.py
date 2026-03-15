@@ -574,7 +574,7 @@ class TestAudioConcatenator:
         assert "-t" in args
         assert "10.0" in args
 
-    def test_concatenate_segments_with_gaps(self, temp_dir, mock_subprocess):
+    def test_concatenate_segments_with_gaps(self, temp_dir):
         """Test concatenating segments with gaps between them."""
         concatenator = AudioConcatenator(temp_dir)
         output_path = temp_dir / "output.mp3"
@@ -608,26 +608,24 @@ class TestAudioConcatenator:
             ),
         ]
 
-        # Mock _create_concat_file to avoid actual file I/O issues during test
-        with patch.object(concatenator, "_create_concat_file") as mock_create_file:
-            mock_create_file.return_value = temp_dir / "concat.txt"
+        with patch("specspectacle.audio.audio_mixer.AudioFileClip") as mock_afc, \
+             patch("specspectacle.audio.audio_mixer.CompositeAudioClip") as mock_cac:
+
+            mock_composite = MagicMock()
+            mock_cac.return_value = mock_composite
+            mock_composite.set_duration.return_value = mock_composite
 
             concatenator.concatenate_segments(segments, 10.0, output_path)
 
-            # Should have called subprocess for silence generation (gaps) and concat
-            # 1. Silence 0.0 -> 1.0 (start of first)
-            # 2. Silence 3.0 -> 5.0 (between first and second)
-            # 3. Silence 8.0 -> 10.0 (end of second to end of video)
-            # 4. Concat command
-            assert mock_subprocess.call_count >= 1
+            # Should have loaded 2 audio clips
+            assert mock_afc.call_count == 2
+            # Should have composed them
+            assert mock_cac.called
+            # Should have written the output file
+            assert mock_composite.write_audiofile.called
 
     def test_cleanup(self, temp_dir):
-        """Test cleanup of temporary files."""
+        """Test cleanup of temporary files (no-op in MoviePy version)."""
         concatenator = AudioConcatenator(temp_dir)
-        temp_file = temp_dir / "temp.txt"
-        temp_file.touch()
-        concatenator._temp_files.append(temp_file)
-
+        # Just ensure it doesn't raise error
         concatenator.cleanup()
-
-        assert not temp_file.exists()

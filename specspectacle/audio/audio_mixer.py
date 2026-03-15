@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from moviepy.editor import AudioFileClip, CompositeAudioClip
+
 from specspectacle.audio.tts import TTSClient, TTSError
 from specspectacle.executor.timeline import Timeline, TimelineEvent
 
@@ -404,11 +406,10 @@ class AudioGenerator:
 
 class AudioConcatenator:
     """
-    Concatenates audio segments into a single audio track with silence gaps.
+    Concatenates audio segments into a single audio track using MoviePy.
 
     This class takes generated audio segments with their timing information
-    and creates a single audio file that matches the video duration, with
-    proper silence gaps between narrations.
+    and creates a single audio file that matches the video duration.
     """
 
     def __init__(self, output_dir: Path):
@@ -420,7 +421,6 @@ class AudioConcatenator:
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self._temp_files: list[Path] = []
 
     def concatenate_segments(
         self,
@@ -429,13 +429,7 @@ class AudioConcatenator:
         output_path: Path,
     ) -> Path:
         """
-        Concatenate audio segments into a single audio track.
-
-        Creates a single audio file with:
-        - Silence before the first narration (if it doesn't start at 0)
-        - Audio segments at their calculated start times
-        - Silence gaps between narrations
-        - Padding to match video duration
+        Concatenate audio segments into a single audio track using MoviePy.
 
         Args:
             segments: List of AudioSegments with output_path and start_time set
@@ -445,11 +439,9 @@ class AudioConcatenator:
         Returns:
             Path to the concatenated audio file
         """
-        import subprocess
-
         if not segments:
-            logger.info("No audio segments to concatenate, generating silence")
-            return self._generate_silence(video_duration, output_path)
+            logger.info("No audio segments to concatenate, generating silent track")
+            return self._generate_silence_track(video_duration, output_path)
 
         # Sort segments by start time
         sorted_segments = sorted(segments, key=lambda s: s.start_time or 0)
@@ -459,104 +451,57 @@ class AudioConcatenator:
             s for s in sorted_segments if s.output_path and Path(s.output_path).exists()
         ]
 
-        logger.debug(
-            f"Total segments: {len(segments)}, Sorted: {len(sorted_segments)}, Valid: {len(valid_segments)}"
-        )
-        if sorted_segments and not valid_segments:
-            for seg in sorted_segments:
-                logger.debug(
-                    f"Segment: path={seg.output_path}, exists={Path(seg.output_path).exists() if seg.output_path else False}"
-                )
-
         if not valid_segments:
-            logger.warning("No valid audio segments found, generating silence")
-            return self._generate_silence(video_duration, output_path)
+            logger.warning("No valid audio segments found, generating silent track")
+            return self._generate_silence_track(video_duration, output_path)
 
-        # Build list of audio files with gaps
-        audio_parts: list[Path] = []
-        current_time = 0.0
+        logger.info(f"Mixing {len(valid_segments)} audio segments with MoviePy")
 
+        # Create MoviePy AudioFileClips
+        audio_clips = []
         for segment in valid_segments:
-            start_time = segment.start_time or 0
+            try:
+                clip = AudioFileClip(str(segment.output_path)).set_start(segment.start_time or 0)
+                audio_clips.append(clip)
+            except Exception as e:
+                logger.warning(f"Failed to load audio segment {segment.output_path}: {e}")
 
-            # Add silence gap if needed
-            gap_duration = start_time - current_time
-            if gap_duration > 0.01:  # Only add if gap is significant (>10ms)
-                silence_path = self._generate_silence(
-                    gap_duration, self.output_dir / f"silence_{len(audio_parts):03d}.mp3"
-                )
-                audio_parts.append(silence_path)
-                self._temp_files.append(silence_path)
+        if not audio_clips:
+            return self._generate_silence_track(video_duration, output_path)
 
-            # Add the audio segment
-            audio_parts.append(Path(segment.output_path))
-            current_time = start_time + (segment.duration or 0)
+        # Compose the audio timeline
+        final_audio = CompositeAudioClip(audio_clips)
 
-        # Add trailing silence if needed
-        if current_time < video_duration:
-            trailing_silence = video_duration - current_time
-            if trailing_silence > 0.01:
-                silence_path = self._generate_silence(
-                    trailing_silence, self.output_dir / "silence_trailing.mp3"
-                )
-                audio_parts.append(silence_path)
-                self._temp_files.append(silence_path)
+        # Ensure final audio is exactly video_duration
+        # Note: CompositeAudioClip duration is the end of the last clip by default.
+        # We can set the duration to video_duration.
+        final_audio = final_audio.set_duration(video_duration)
 
-        # Create concat file for FFmpeg
-        concat_file = self._create_concat_file(audio_parts)
-        self._temp_files.append(concat_file)
+        # Export the final audio
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Run FFmpeg to concatenate
-        try:
-            output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Writing concatenated audio to {output_path}")
+        final_audio.write_audiofile(
+            str(output_path),
+            fps=44100,
+            nbytes=2,
+            codec="libmp3lame",
+            logger=None
+        )
 
-            # Normalize audio parameters to prevent encoding errors
-            # All segments should be resampled to 44100 Hz stereo before encoding
-            cmd = [
-                "ffmpeg",
-                "-y",
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                str(concat_file),
-                "-af",
-                "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo",
-                "-c:a",
-                "libmp3lame",
-                "-q:a",
-                "2",
-                str(output_path),
-            ]
+        # Close clips to free resources
+        for clip in audio_clips:
+            clip.close()
+        final_audio.close()
 
-            logger.debug(f"Running FFmpeg concat: {' '.join(cmd)}")
+        return output_path
 
-            subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-
-            logger.info(f"Concatenated {len(audio_parts)} audio parts to {output_path}")
-            return output_path
-
-        except subprocess.CalledProcessError as e:
-            logger.error(f"FFmpeg concatenation failed: {e.stderr}")
-            raise RuntimeError(f"Audio concatenation failed: {e.stderr}")
-
-    def _generate_silence(self, duration: float, output_path: Path) -> Path:
+    def _generate_silence_track(self, duration: float, output_path: Path) -> Path:
         """
-        Generate a silent audio file of the specified duration.
+        Generate a silent audio track of the specified duration using FFmpeg.
 
-        Args:
-            duration: Duration in seconds
-            output_path: Path for the output file
-
-        Returns:
-            Path to the generated silence file
+        Keep this as a fallback for generating long silence more efficiently.
         """
         import subprocess
 
@@ -581,41 +526,14 @@ class AudioConcatenator:
 
         try:
             subprocess.run(cmd, capture_output=True, text=True, check=True)
-            logger.debug(f"Generated {duration:.2f}s silence: {output_path}")
             return output_path
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to generate silence: {e.stderr}")
             raise RuntimeError(f"Silence generation failed: {e.stderr}")
 
-    def _create_concat_file(self, audio_paths: list[Path]) -> Path:
-        """
-        Create FFmpeg concat demuxer file.
-
-        Args:
-            audio_paths: List of audio file paths to concatenate
-
-        Returns:
-            Path to the concat file
-        """
-        concat_file = self.output_dir / "concat_list.txt"
-
-        with open(concat_file, "w") as f:
-            for audio_path in audio_paths:
-                # Convert to absolute path and escape single quotes
-                abs_path = Path(audio_path).resolve()
-                escaped_path = str(abs_path).replace("'", "'\\''")
-                f.write(f"file '{escaped_path}'\n")
-        return concat_file
-
     def cleanup(self) -> None:
-        """Remove all temporary files created during concatenation."""
-        for temp_file in self._temp_files:
-            try:
-                if temp_file.exists():
-                    temp_file.unlink()
-            except OSError as e:
-                logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
-        self._temp_files.clear()
+        """Cleanup is now mostly handled by clip.close() but we can clean temp files if any."""
+        pass
 
 
 __all__ = [

@@ -172,208 +172,39 @@ def run(
 
             # Import video processing modules
             from specspectacle.video import (
-                OverlayTimestampCalculator,
-                VideoProcessor,
                 check_ffmpeg_installed,
-                render_overlays_on_video,
             )
 
             # Check if FFmpeg is available for video processing
             if check_ffmpeg_installed():
                 console.print()
-                console.print("[bold cyan]Processing Video...[/bold cyan]")
+                console.print("[bold cyan]Processing Video (Unified MoviePy Render)...[/bold cyan]")
                 console.print(f"  Compression: {compression}, Resolution: {spec.output.resolution}")
 
                 try:
-                    # Create video processor
-                    raw_video_path = Path(video_path)
-                    processor = VideoProcessor(raw_video_path, out_path)
+                    # Create MoviePy video processor
+                    from specspectacle.video.moviepy_processor import MoviePyProcessor
 
-                    # 1. Basic Video Processing (codec, resize, fps)
-                    # We use a temp name first
-                    intermediate_filename = f"processed_{spec.output.filename}"
-                    current_video_path = processor.process(
-                        output_filename=intermediate_filename,
-                        fps=spec.output.fps,
-                        bitrate=spec.output.bitrate,
-                        resolution=spec.output.resolution,
-                        codec=spec.output.codec,
+                    raw_video_path = Path(video_path)
+                    processor = MoviePyProcessor(raw_video_path, out_path)
+
+                    # Unified Render Pass
+                    final_video_path = processor.full_render(
+                        output_filename=spec.output.filename,
+                        timeline=timeline,
+                        spec=spec,
+                        no_narration=no_narration,
+                        no_overlays=no_overlays,
                         compression_preset=compression,
                     )
 
-                    # 2. Audio Generation & Merging
-                    # Audio files are pre-generated during browser execution for accurate timing
-                    if not no_narration and spec.narration.enabled:
-                        console.print("  [bold]Processing Narration Audio...[/bold]")
-                        try:
-                            from specspectacle.audio import (
-                                AudioConcatenator,
-                                AudioTimeline,
-                            )
-
-                            audio_timeline = AudioTimeline.from_spec_and_timeline(spec, timeline)
-
-                            if audio_timeline.segments:
-                                # Audio files were pre-generated during execution
-                                # Just need to update segment paths and durations from existing files
-                                audio_dir = out_path / "audio_segments"
-
-                                # Scan for pre-generated audio files and get their durations
-                                import subprocess
-
-                                for segment in audio_timeline.segments:
-                                    # Find matching audio file
-                                    pattern = f"narration_{segment.flow_index:02d}_{segment.step_index:02d}_*.mp3"
-                                    matches = list(audio_dir.glob(pattern))
-                                    if matches:
-                                        audio_path = matches[0]
-                                        segment.output_path = audio_path
-                                        # Get actual duration
-                                        result = subprocess.run(
-                                            [
-                                                "ffprobe",
-                                                "-v",
-                                                "error",
-                                                "-show_entries",
-                                                "format=duration",
-                                                "-of",
-                                                "default=noprint_wrappers=1:nokey=1",
-                                                str(audio_path),
-                                            ],
-                                            capture_output=True,
-                                            text=True,
-                                            check=True,
-                                        )
-                                        segment.duration = float(result.stdout.strip())
-                                        segment.end_time = (
-                                            segment.start_time or 0
-                                        ) + segment.duration
-
-                                # Concatenate segments
-                                concatenator = AudioConcatenator(out_path / "audio_temp")
-                                final_audio = concatenator.concatenate_segments(
-                                    audio_timeline.segments,
-                                    timeline.total_duration,
-                                    out_path / "narration_track.mp3",
-                                )
-
-                                # Merge with video
-                                console.print("  Merging audio track...")
-                                merged_video = processor.merge_audio(
-                                    current_video_path, final_audio
-                                )
-
-                                # Cleanup intermediate video
-                                if not keep_artifacts and current_video_path != raw_video_path:
-                                    with contextlib.suppress(OSError):
-                                        current_video_path.unlink()
-                                current_video_path = merged_video
-
-                                # Cleanup audio temps
-                                if not keep_artifacts:
-                                    concatenator.cleanup()
-
-                            else:
-                                console.print("    [dim]No narration segments active[/dim]")
-
-                        except Exception as e:
-                            console.print(f"    [yellow]⚠ Audio integration failed:[/yellow] {e}")
-                            logger.exception("Audio processing error")
-
-                    # 2.5 Sound Effects (SFX)
-                    if spec.config.sfx and timeline.sound_events:
-                        console.print(f"  [bold]Mixing {len(timeline.sound_events)} Sound Events...[/bold]")
-                        try:
-                            from specspectacle.audio.sfx import resolve_sfx_path
-                            click_path = resolve_sfx_path(spec.config.sfx.click, "click")
-                            key_path = resolve_sfx_path(spec.config.sfx.key, "key")
-
-                            if click_path or key_path:
-                                sfx_video = processor.apply_sfx(
-                                    current_video_path,
-                                    timeline.sound_events,
-                                    click_path,
-                                    key_path,
-                                )
-                                # Cleanup intermediate video
-                                if not keep_artifacts and current_video_path != raw_video_path and current_video_path != sfx_video:
-                                    with contextlib.suppress(OSError):
-                                        current_video_path.unlink()
-                                current_video_path = sfx_video
-                        except Exception as e:
-                            console.print(f"    [yellow]⚠ SFX integration failed:[/yellow] {e}")
-                            logger.exception("SFX processing error")
-
-                    # 3. Text Overlays
-                    if not no_overlays:
-                        overlays = OverlayTimestampCalculator.calculate_overlays(spec, timeline, spec.config.branding)
-                        if overlays:
-                            console.print(f"  [bold]Rendering {len(overlays)} Overlays...[/bold]")
-                            try:
-                                overlaid_video = render_overlays_on_video(
-                                    current_video_path,
-                                    out_path / f"overlaid_{spec.output.filename}",
-                                    overlays,
-                                )
-
-                                # Cleanup intermediate video
-                                if not keep_artifacts and current_video_path != raw_video_path:
-                                    with contextlib.suppress(OSError):
-                                        current_video_path.unlink()
-                                current_video_path = overlaid_video
-
-                            except Exception as e:
-                                console.print(
-                                    f"    [yellow]⚠ Overlay rendering failed:[/yellow] {e}"
-                                )
-                                logger.exception("Overlay rendering error")
-
-                    # 3.5 Branding (Logo + Colors)
-                    branding_applied = False
-                    if spec.config.branding:
-                        console.print("  [bold]Applying Branding...[/bold]")
-                        try:
-                            # Use current_video_path as input to apply_branding
-                            # apply_branding will write to spec.output.filename
-                            current_video_path = processor.apply_branding(
-                                current_video_path,
-                                timeline,
-                                spec.config.branding,
-                                spec.output.filename,
-                            )
-                            branding_applied = True
-
-                        except Exception as e:
-                            console.print(
-                                f"    [yellow]⚠ Branding application failed:[/yellow] {e}"
-                            )
-                            logger.exception("Branding application error")
-
-                    # Final cleanup and rename to target filename (skip if branding was applied)
-                    if not branding_applied:
-                        target_path = out_path / spec.output.filename
-                        if target_path.exists():
-                            target_path.unlink()
-
-                        current_video_path.rename(target_path)
-                        final_video_path = target_path
-                    else:
-                        final_video_path = current_video_path
-
-                    console.print("[bold green]✓ Video Processing Complete![/bold green]")
+                    console.print("[bold green]✓ Unified Video Rendering Complete![/bold green]")
                     console.print(f"  [bold]Final Video:[/bold] {final_video_path}")
 
-                    # Clean up raw video unless --keep-artifacts
                     if not keep_artifacts:
-                        try:
+                        with contextlib.suppress(OSError):
                             raw_video_path.unlink()
-                            console.print("  [dim]Cleaned up raw video[/dim]")
-                        except OSError as e:
-                            logger.warning(f"Failed to clean up raw video: {e}")
-                    else:
-                        console.print(f"  [dim]Keeping raw video: {raw_video_path}[/dim]")
 
-                    # Cleanup any processor temp files
                     processor.cleanup_temp_files()
 
                 except Exception as e:

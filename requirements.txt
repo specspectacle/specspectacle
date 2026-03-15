@@ -15,6 +15,7 @@ pydantic>=2.0.0
 
 # Video post-processing
 ffmpeg-python>=0.2.0
+moviepy>=1.0.3
 
 # Text-to-Speech - Edge TTS (Free, no API key required)
 edge-tts>=6.1.0

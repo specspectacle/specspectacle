@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        :root {
+            --primary-color: {{ primary_color | default('#3b82f6') }};
+            --text-color: {{ text_color | default('#ffffff') }};
+            --background-color: {{ background_color | default('#0f172a') }};
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .logo {
+            max-width: 250px;
+            max-height: 250px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 15px rgba(0,0,0,0.3));
+        }
+
+        .title {
+            font-size: 4rem;
+            font-weight: 800;
+            margin: 0;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+
+        .accent-bar {
+            width: 80px;
+            height: 8px;
+            background-color: var(--primary-color);
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% if logo_url %}
+        <img src="{{ logo_url }}" alt="Logo" class="logo">
+        {% endif %}
+        
+        <div>
+            <h1 class="title">{{ title }}</h1>
+            {% if subtitle %}
+            <p class="subtitle">{{ subtitle }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="accent-bar"></div>
+    </div>
+</body>
+</html>

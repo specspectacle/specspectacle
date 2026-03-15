@@ -285,9 +285,6 @@ class BrowserRunner:
         """
         logger.info("Closing browser...")
 
-        # Mark timeline completion
-        self.timeline.complete()
-
         video_path = None
         if self.page:
             # Get the video path before closing
@@ -471,12 +468,25 @@ class BrowserRunner:
                         )
 
             logger.info("\n✓ Spec execution completed successfully")
+
+            # Add delay for outro branding if configured
+            # This ensures the recording continues so the outro covers "extra" time
+            # instead of hiding the final steps of the demo.
+            if self.spec.config.branding:
+                outro_duration = self.spec.config.branding.outro_duration
+                if outro_duration > 0:
+                    logger.info(f"Adding delay for outro branding: {outro_duration}s")
+                    await asyncio.sleep(outro_duration)
+            
+            # Mark timeline completion BEFORE calculating outro start time
+            # This ensures total_duration includes intro branding, all steps, and the new outro delay
+            self.timeline.complete()
+
             logger.info(f"  Total duration: {self.timeline.total_duration:.2f}s")
             logger.info(f"  Events recorded: {len(self.timeline.events)}")
 
             # Update outro segment start time now that we know the total duration
             if self.spec.config.branding:
-
                 branding = self.spec.config.branding
                 total_duration = self.timeline.total_duration
                 outro_start_time = max(0.0, total_duration - branding.outro_duration)
